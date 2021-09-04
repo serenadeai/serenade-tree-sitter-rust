@@ -95,8 +95,6 @@ module.exports = grammar({
       prec(1, $._expression_ending_with_block)
     ),
 
-    // declaration_statement: $ => $._declaration_statement, 
-
     _declaration_statement: $ => choice(
       $.const_item,
       $.macro_invocation,
@@ -260,7 +258,6 @@ module.exports = grammar({
 
     declaration_list: $ => repeat1($._declaration_statement),
 
-    // field_declaration_list_wrapped: $ => seq()
     struct_item: $ => seq(
       optional_with_placeholder('modifier_list', $.visibility_modifier),
       'struct',
