@@ -7496,41 +7496,45 @@
             "type": "CHOICE",
             "members": [
               {
-                "type": "SEQ",
-                "members": [
-                  {
-                    "type": "CHOICE",
-                    "members": [
-                      {
-                        "type": "FIELD",
-                        "name": "function_type_clause",
-                        "content": {
-                          "type": "SYMBOL",
-                          "name": "function_type_clause"
+                "type": "PREC",
+                "value": 10,
+                "content": {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "CHOICE",
+                      "members": [
+                        {
+                          "type": "FIELD",
+                          "name": "function_type_clause",
+                          "content": {
+                            "type": "SYMBOL",
+                            "name": "function_type_clause"
+                          }
+                        },
+                        {
+                          "type": "FIELD",
+                          "name": "function_type_clause",
+                          "content": {
+                            "type": "BLANK"
+                          }
                         }
-                      },
-                      {
-                        "type": "FIELD",
-                        "name": "function_type_clause",
-                        "content": {
-                          "type": "BLANK"
-                        }
+                      ]
+                    },
+                    {
+                      "type": "FIELD",
+                      "name": "body",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "block"
                       }
-                    ]
-                  },
-                  {
-                    "type": "FIELD",
-                    "name": "body",
-                    "content": {
-                      "type": "SYMBOL",
-                      "name": "block"
                     }
-                  }
-                ]
+                  ]
+                }
               },
               {
                 "type": "FIELD",
-                "name": "body_without_braces",
+                "name": "lambda_return_value",
                 "content": {
                   "type": "SYMBOL",
                   "name": "_expression"

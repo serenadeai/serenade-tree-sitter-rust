@@ -1270,11 +1270,11 @@ module.exports = grammar({
       optional('move'),
       field('parameters', $.closure_parameters),
       choice(
-        seq(
+        prec(10, seq(
           optional_with_placeholder('function_type_clause', $.function_type_clause),
           field('body', $.block)
-        ),
-        field('body_without_braces', $._expression)
+        )),
+        field('lambda_return_value', $._expression)
       )
     )),
 

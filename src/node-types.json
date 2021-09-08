@@ -971,22 +971,22 @@
           }
         ]
       },
-      "body_without_braces": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "_expression",
-            "named": true
-          }
-        ]
-      },
       "function_type_clause": {
         "multiple": false,
         "required": false,
         "types": [
           {
             "type": "function_type_clause",
+            "named": true
+          }
+        ]
+      },
+      "lambda_return_value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "_expression",
             "named": true
           }
         ]
