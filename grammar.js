@@ -1265,13 +1265,15 @@ module.exports = grammar({
       'const',
       field('body', $.block)
     ),
+    
+    move_modifier: $ => field('modifier', 'move'), 
 
     closure_expression: $ => prec(PREC.closure, seq(
-      optional('move'),
+      optional_with_placeholder('modifier_list', $.move_modifier),
       field('parameters', $.closure_parameters),
       choice(
-        prec(10, seq(
-          optional_with_placeholder('function_type_clause', $.function_type_clause),
+        prec.dynamic(1, seq(
+          optional_with_placeholder('function_type_clause_optional', $.function_type_clause),
           field('body', $.block)
         )),
         field('lambda_return_value', $._expression)

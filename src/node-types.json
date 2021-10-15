@@ -971,7 +971,7 @@
           }
         ]
       },
-      "function_type_clause": {
+      "function_type_clause_optional": {
         "multiple": false,
         "required": false,
         "types": [
@@ -987,6 +987,16 @@
         "types": [
           {
             "type": "_expression",
+            "named": true
+          }
+        ]
+      },
+      "modifier_list": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "move_modifier",
             "named": true
           }
         ]
@@ -2976,6 +2986,22 @@
           {
             "type": "identifier",
             "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "move_modifier",
+    "named": true,
+    "fields": {
+      "modifier": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "move",
+            "named": false
           }
         ]
       }
