@@ -401,6 +401,10 @@
         "required": false,
         "types": [
           {
+            "type": "!!UNMATCHABLE_20a83a3h0",
+            "named": false
+          },
+          {
             "type": "=",
             "named": false
           },
@@ -2039,7 +2043,7 @@
           }
         ]
       },
-      "type_optional": {
+      "return_type_optional": {
         "multiple": false,
         "required": false,
         "types": [
@@ -2132,16 +2136,6 @@
     "type": "function_type",
     "named": true,
     "fields": {
-      "function_type_clause": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "function_type_clause",
-            "named": true
-          }
-        ]
-      },
       "implements_type": {
         "multiple": false,
         "required": false,
@@ -2162,6 +2156,16 @@
         "types": [
           {
             "type": "parameters",
+            "named": true
+          }
+        ]
+      },
+      "return_type_optional": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "function_type_clause",
             "named": true
           }
         ]
@@ -2609,12 +2613,12 @@
     "type": "lambda",
     "named": true,
     "fields": {
-      "function_type_clause": {
+      "modifier_list": {
         "multiple": false,
         "required": false,
         "types": [
           {
-            "type": "function_type_clause",
+            "type": "move_modifier",
             "named": true
           }
         ]
@@ -2625,6 +2629,16 @@
         "types": [
           {
             "type": "closure_parameters",
+            "named": true
+          }
+        ]
+      },
+      "return_type_optional": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "function_type_clause",
             "named": true
           }
         ]
@@ -3044,6 +3058,22 @@
           {
             "type": "identifier",
             "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "move_modifier",
+    "named": true,
+    "fields": {
+      "modifier": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "move",
+            "named": false
           }
         ]
       }
@@ -5433,6 +5463,10 @@
   },
   {
     "type": "!",
+    "named": false
+  },
+  {
+    "type": "!!UNMATCHABLE_20a83a3h0",
     "named": false
   },
   {

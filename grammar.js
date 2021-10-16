@@ -339,10 +339,13 @@ module.exports = grammar({
       field('assignment_list', alias($.property_assignment, $.assignment))
     ),
 
-    property_assignment: $ => field('assignment_variable', seq(
-      $._field_identifier,
-      $.type_optional
-    )),
+    property_assignment: $ => seq(
+      field('assignment_variable', seq(
+        $._field_identifier,
+        $.type_optional
+      )),
+      optional_with_placeholder('assignment_value_list_optional', '!!UNMATCHABLE_20a83a3h0')
+    ),
 
     ordered_field_declaration_list_block: $ => seq(
       '(', 
@@ -428,7 +431,7 @@ module.exports = grammar({
       field('name', choice($.identifier, $.metavariable)),
       optional_with_placeholder('type_parameter_list_optional', $.type_parameters),
       field('parameters', $.parameters),
-      optional_with_placeholder('type_optional', $.function_type_clause),
+      optional_with_placeholder('return_type_optional', $.function_type_clause),
       optional_with_placeholder('type_parameter_constraint_list_optional', $.where_clause),
       choice(';', $.enclosed_body)
     ),
@@ -775,7 +778,7 @@ module.exports = grammar({
         ),
         field('parameters', $.parameters)
       )),
-      optional_with_placeholder('function_type_clause', $.function_type_clause)
+      optional_with_placeholder('return_type_optional', $.function_type_clause)
     ),
 
     tuple_type: $ => seq(
@@ -1280,12 +1283,14 @@ module.exports = grammar({
       $.enclosed_body
     ),
 
+    move_modifier: $ => field('modifier', 'move'),
+
     lambda: $ => prec(PREC.closure, seq(
-      optional('move'),
+      optional_with_placeholder('modifier_list', $.move_modifier),
       field('parameters', $.closure_parameters),
       choice(
-        prec(10, seq(
-          optional_with_placeholder('function_type_clause', $.function_type_clause),
+        prec.dynamic(1, seq(
+          optional_with_placeholder('return_type_optional', $.function_type_clause),
           $.enclosed_body
         )),
         field('return_value', $.expression)
