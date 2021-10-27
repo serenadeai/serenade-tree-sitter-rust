@@ -1042,7 +1042,7 @@ module.exports = grammar({
     ),
 
     call_expression: $ => prec(PREC.call, seq(
-      field('function', $.expression),
+      field('function_', $.expression),
       '(',
       field('arguments', seq(
         sepBy(',', $.argument),

@@ -768,7 +768,7 @@
           }
         ]
       },
-      "function": {
+      "function_": {
         "multiple": false,
         "required": true,
         "types": [

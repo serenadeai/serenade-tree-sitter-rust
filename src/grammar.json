@@ -6263,7 +6263,7 @@
         "members": [
           {
             "type": "FIELD",
-            "name": "function",
+            "name": "function_",
             "content": {
               "type": "SYMBOL",
               "name": "expression"
