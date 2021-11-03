@@ -48,7 +48,7 @@ module.exports = grammar({
   ],
 
   supertypes: $ => [
-    $._declaration_statement,
+    // $.declaration_statement_,
   ],
 
   inline: $ => [
@@ -57,7 +57,7 @@ module.exports = grammar({
     $._tokens,
     $._field_identifier,
     $._non_special_token,
-    $._declaration_statement,
+    // $.declaration_statement_,
     $._reserved_identifier,
     $._expression_ending_with_block
   ],
@@ -86,18 +86,18 @@ module.exports = grammar({
     ),
 
     statement: $ => choice(
-      $._expression_statement,
-      $._declaration_statement
+      $.expression_statement_,
+      $.declaration_statement_
     ),
 
     empty_statement: $ => ';',
 
-    _expression_statement: $ => choice(
+    expression_statement_: $ => choice(
       seq($.expression, ';'),
       prec(1, $._expression_ending_with_block)
     ),
 
-    _declaration_statement: $ => choice(
+    declaration_statement_: $ => choice(
       $.const_item,
       $.macro_invocation,
       $.macro_definition,
@@ -257,7 +257,7 @@ module.exports = grammar({
       )
     ),
 
-    declaration_list: $ => repeat1($._declaration_statement),
+    declaration_list: $ => repeat1(alias($.declaration_statement_, $.member)),
 
     struct: $ => seq(
       optional_with_placeholder('modifier_list', $.visibility_modifier),
@@ -303,13 +303,14 @@ module.exports = grammar({
     enum_variant_list: $ => seq(
       '{',
       optional_with_placeholder('enum_member_list', seq(
-        sepBy(',', seq(repeat($.attribute_item), $.enum_variant)),
+        sepBy(',', alias($.enum_variant, $.member)),
         optional(',')
       )),
       '}'
     ),
 
     enum_variant: $ => seq(
+      repeat($.attribute_item),
       optional_with_placeholder('modifier_list', $.visibility_modifier),
       field('name', $.identifier),
       optional_with_placeholder('enclosed_body', 
@@ -343,7 +344,7 @@ module.exports = grammar({
     ),
 
     field_declaration_list: $ => seq(
-      sepBy1(',', seq(repeat($.attribute_item), $.property)),
+      sepBy1(',', field('member', seq(repeat($.attribute_item), $.property))),
       optional(','),
     ),
 
@@ -385,7 +386,7 @@ module.exports = grammar({
     ),
 
     ordered_field_declaration_list: $ => field('anonymous_property_list', seq(
-      sepBy1(',', $.anonymous_property),
+      sepBy1(',', alias($.anonymous_property, $.member)),
       optional(',')
     )),
 
@@ -1130,14 +1131,16 @@ module.exports = grammar({
     field_initializer_list_block: $ => seq(
       '{',
       field('class_member_list', seq(
-        sepBy(',', choice(
-          $.shorthand_field_initializer,
-          $.field_initializer,
-          $.base_field_initializer
-        )),
+        sepBy(',', alias($.class_member, $.member)),
         optional(',')
       )),
       '}'
+    ),
+
+    class_member: $ => choice(
+      $.shorthand_field_initializer,
+      $.field_initializer,
+      $.base_field_initializer
     ),
 
     shorthand_field_initializer: $ => seq(
