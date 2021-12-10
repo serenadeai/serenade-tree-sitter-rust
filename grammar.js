@@ -48,7 +48,6 @@ module.exports = grammar({
   ],
 
   supertypes: $ => [
-    // $.declaration_statement_,
   ],
 
   inline: $ => [
@@ -57,7 +56,6 @@ module.exports = grammar({
     $._tokens,
     $._field_identifier,
     $._non_special_token,
-    // $.declaration_statement_,
     $._reserved_identifier,
     $._expression_ending_with_block
   ],
@@ -424,7 +422,7 @@ module.exports = grammar({
       // Not actual rust syntax, but made popular by the lazy_static crate.
       optional('ref'),
 
-      optional_with_placeholder('modifier_list', $.mutable_specifier),
+      optional_with_placeholder('second_modifier_list', $.mutable_specifier),
       field('name', $.identifier),
       $.type_optional,
       optional(seq(
@@ -1237,7 +1235,7 @@ module.exports = grammar({
       '{',
       optional(seq(
         repeat($.match_arm),
-        alias($.last_match_arm, $.match_arm)
+        $.last_match_arm
       )),
       '}'
     ),
@@ -1250,8 +1248,8 @@ module.exports = grammar({
       )),
       '=>',
       choice(
-        seq(field('value', $.expression), ','),
-        field('value', prec(1, $._expression_ending_with_block))
+        seq($.expression, ','),
+        prec(1, $._expression_ending_with_block)
       )
     ),
 
@@ -1452,9 +1450,9 @@ module.exports = grammar({
       optional('ref'),
       optional_with_placeholder('modifier_list', $.mutable_specifier),
       choice(
-        field('name', alias($.identifier, $.shorthand_field_identifier)),
+        alias($.identifier, $.shorthand_field_identifier),
         seq(
-          field('name', $._field_identifier),
+          $._field_identifier, //name
           ':',
           field('pattern', $.pattern_)
         )
