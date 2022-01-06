@@ -30,7 +30,7 @@ const numeric_types = [
   'isize',
   'usize',
   'f32',
-  'f64'
+  'f64',
 ]
 
 const primitive_types = numeric_types.concat(['bool', 'str', 'char'])
@@ -47,14 +47,7 @@ module.exports = grammar({
     $.block_comment,
   ],
 
-  supertypes: $ => [
-    $._expression,
-    $._type,
-    $._literal,
-    $._literal_pattern,
-    $._declaration_statement,
-    $._pattern,
-  ],
+  supertypes: $ => [],
 
   inline: $ => [
     $._path,
@@ -62,935 +55,1089 @@ module.exports = grammar({
     $._tokens,
     $._field_identifier,
     $._non_special_token,
-    $._declaration_statement,
     $._reserved_identifier,
-    $._expression_ending_with_block
+    $._expression_ending_with_block,
   ],
 
   conflicts: $ => [
     // Local ambiguity due to anonymous types:
     // See https://internals.rust-lang.org/t/pre-rfc-deprecating-anonymous-parameters/3710
-    [$._type, $._pattern],
+    [$.type_, $.pattern_],
     [$.unit_type, $.tuple_pattern],
     [$.scoped_identifier, $.scoped_type_identifier],
-    [$.parameter, $._pattern],
+    [$.parameter, $.pattern_],
     [$.parameters, $.tuple_struct_pattern],
-    [$.type_parameters, $.for_lifetimes],
+    [$.type_parameter, $.for_lifetimes],
+
+    [$.type_parameter, $.type_],
+    [$.primitive_type, $.pattern_],
+    [$.primitive_type, $.primitive_type_identifiers],
+    [$.empty_return, $.return],
   ],
 
-  word: $ => $.identifier,
+  word: $ => $.identifier_,
 
   rules: {
-    source_file: $ => repeat($.statement),
+    program: $ =>
+      optional_with_placeholder('statement_list', repeat($.statement)),
 
-    statement: $ => choice(
-      $._expression_statement,
-      $._declaration_statement
-    ),
+    statement: $ => choice($.expression_statement_, $.declaration_statement_),
 
     empty_statement: $ => ';',
 
-    _expression_statement: $ => choice(
-      seq($._expression, ';'),
-      prec(1, $._expression_ending_with_block)
-    ),
+    expression_statement_: $ =>
+      choice(seq($.expression, ';'), prec(1, $._expression_ending_with_block)),
 
-    _declaration_statement: $ => choice(
-      $.const_item,
-      $.macro_invocation,
-      $.macro_definition,
-      $.empty_statement,
-      $.attribute_item,
-      $.inner_attribute_item,
-      $.mod_item,
-      $.foreign_mod_item,
-      $.struct_item,
-      $.union_item,
-      $.enum_item,
-      $.type_item,
-      $.function_item,
-      $.function_signature_item,
-      $.impl_item,
-      $.trait_item,
-      $.associated_type,
-      $.let_declaration,
-      $.use_declaration,
-      $.extern_crate_declaration,
-      $.static_item
-    ),
+    declaration_statement_: $ =>
+      choice(
+        $.const_item,
+        $.macro_invocation,
+        $.macro_definition,
+        $.empty_statement,
+        $.attribute_item,
+        $.inner_attribute_item,
+        $.mod_item,
+        $.foreign_mod_item,
+        $.struct,
+        $.union_item,
+        $.enum,
+        $.type_item,
+        $.function,
+        $.implementation,
+        $.trait,
+        $.associated_type,
+        alias($.let_declaration, $.variable_declaration),
+        $.use_declaration,
+        $.extern_crate_declaration,
+        $.static_item
+      ),
 
     // Section - Macro definitions
 
     macro_definition: $ => {
-      const rules = seq(
-        repeat(seq($.macro_rule, ';')),
-        optional($.macro_rule)
-      )
+      const rules = seq(repeat(seq($.macro_rule, ';')), optional($.macro_rule))
 
       return seq(
         'macro_rules!',
-        field('name', choice(
-          $.identifier,
-          $._reserved_identifier,
-        )),
-        choice(
-          seq('(', rules, ')', ';'),
-          seq('{', rules, '}')
-        )
+        field('name', choice($.identifier, $._reserved_identifier)),
+        choice(seq('(', rules, ')', ';'), seq('{', rules, '}'))
       )
     },
 
-    macro_rule: $ => seq(
-      field('left', $.token_tree_pattern),
-      '=>',
-      field('right', $.token_tree)
-    ),
+    macro_rule: $ =>
+      seq(
+        field('left', $.token_tree_pattern),
+        '=>',
+        field('right', $.token_tree)
+      ),
 
-    _token_pattern: $ => choice(
-      $.token_tree_pattern,
-      $.token_repetition_pattern,
-      $.token_binding_pattern,
-      $._non_special_token
-    ),
+    _token_pattern: $ =>
+      choice(
+        $.token_tree_pattern,
+        $.token_repetition_pattern,
+        $.token_binding_pattern,
+        $._non_special_token
+      ),
 
-    token_tree_pattern: $ => choice(
-      seq('(', repeat($._token_pattern), ')'),
-      seq('[', repeat($._token_pattern), ']'),
-      seq('{', repeat($._token_pattern), '}')
-    ),
+    token_tree_pattern: $ =>
+      choice(
+        seq('(', repeat($._token_pattern), ')'),
+        seq('[', repeat($._token_pattern), ']'),
+        seq('{', repeat($._token_pattern), '}')
+      ),
 
-    token_binding_pattern: $ => prec(1, seq(
-      field('name', $.metavariable),
-      ':',
-      field('type', $.fragment_specifier)
-    )),
+    token_binding_pattern: $ =>
+      prec(
+        1,
+        seq(
+          field('name', $.metavariable),
+          ':',
+          field('type', $.fragment_specifier)
+        )
+      ),
 
-    token_repetition_pattern: $ => seq(
-      '$', '(', repeat($._token_pattern), ')', optional(/[^+*?]+/), choice('+', '*', '?')
-    ),
+    token_repetition_pattern: $ =>
+      seq(
+        '$',
+        '(',
+        repeat($._token_pattern),
+        ')',
+        optional(/[^+*?]+/),
+        choice('+', '*', '?')
+      ),
 
-    fragment_specifier: $ => choice(
-      'block', 'expr', 'ident', 'item', 'lifetime', 'literal', 'meta', 'pat',
-      'path', 'stmt', 'tt', 'ty', 'vis'
-    ),
+    fragment_specifier: $ =>
+      choice(
+        'block',
+        'expr',
+        'ident',
+        'item',
+        'lifetime',
+        'literal',
+        'meta',
+        'pat',
+        'path',
+        'stmt',
+        'tt',
+        'ty',
+        'vis'
+      ),
 
-    _tokens: $ => choice(
-      $.token_tree,
-      $.token_repetition,
-      $._non_special_token
-    ),
+    _tokens: $ =>
+      choice($.token_tree, $.token_repetition, $._non_special_token),
 
-    token_tree: $ => choice(
-      seq('(', repeat($._tokens), ')'),
-      seq('[', repeat($._tokens), ']'),
-      seq('{', repeat($._tokens), '}')
-    ),
+    token_tree: $ =>
+      choice(
+        seq('(', repeat($._tokens), ')'),
+        seq('[', repeat($._tokens), ']'),
+        seq('{', repeat($._tokens), '}')
+      ),
 
-    token_repetition: $ => seq(
-      '$', '(', repeat($._tokens), ')', optional(/[^+*?]+/), choice('+', '*', '?')
-    ),
+    token_repetition: $ =>
+      seq(
+        '$',
+        '(',
+        repeat($._tokens),
+        ')',
+        optional(/[^+*?]+/),
+        choice('+', '*', '?')
+      ),
 
-    _non_special_token: $ => choice(
-      $._literal, $.identifier, $.metavariable, $.mutable_specifier, $.self, $.super, $.crate,
-      alias(choice(...primitive_types), $.primitive_type),
-      /[/_\-=->,;:::!=?.@*&#%^+<>|~]+/,
-      '\'',
-      'as', 'async', 'await', 'break', 'const', 'continue', 'default', 'enum', 'fn', 'for', 'if', 'impl',
-      'let', 'loop', 'match', 'mod', 'pub', 'return', 'static', 'struct', 'trait', 'type',
-      'union', 'unsafe', 'use', 'where', 'while'
-    ),
+    _non_special_token: $ =>
+      choice(
+        $.literal_,
+        $.identifier,
+        $.metavariable,
+        $.mutable_specifier,
+        $.self,
+        $.super,
+        $.crate,
+        $.primitive_type,
+        /[/_\-=->,;:::!=?.@*&#%^+<>|~]+/,
+        "'",
+        'as',
+        'async',
+        'await',
+        'break',
+        'const',
+        'continue',
+        'default',
+        'enum',
+        'fn',
+        'for',
+        'if',
+        'impl',
+        'let',
+        'loop',
+        'match',
+        'mod',
+        'pub',
+        'return',
+        'static',
+        'struct',
+        'trait',
+        'type',
+        'union',
+        'unsafe',
+        'use',
+        'where',
+        'while'
+      ),
 
     // Section - Declarations
 
-    attribute_item: $ => seq(
-      '#',
-      '[',
-      $.meta_item,
-      ']'
-    ),
+    attribute_item: $ => seq('#', '[', $.meta_item, ']'),
 
-    inner_attribute_item: $ => seq(
-      '#',
-      '!',
-      '[',
-      $.meta_item,
-      ']'
-    ),
+    inner_attribute_item: $ => seq('#', '!', '[', $.meta_item, ']'),
 
-    meta_item: $ => seq(
-      $._path,
-      optional(choice(
-        seq('=', field('value', $._literal)),
-        field('arguments_with_parens', $.meta_arguments)
-      ))
-    ),
+    meta_item: $ =>
+      seq(
+        $._path,
+        optional(
+          choice(
+            seq('=', field('value', $.literal_)),
+            field('arguments_with_parens', $.meta_arguments)
+          )
+        )
+      ),
 
-    meta_arguments: $ => seq(
-      '(',
-      field('arguments', seq(
-        sepBy(',', choice(
-          $.meta_item,
-          $._literal
-        )),
-        optional(',')
-      )),
-      ')'
-    ),
-
-    mod_item: $ => seq(
-      optional_with_placeholder('modifier_list', $.visibility_modifier),
-      'mod',
-      field('name', $.identifier),
-      choice(
-        ';',
-        field('body', seq('{', optional($.declaration_list), '}'))
-      )
-    ),
-
-    foreign_mod_item: $ => seq(
-      optional_with_placeholder('modifier_list', $.visibility_modifier),
-      $.extern_modifier,
-      choice(
-        ';',
-        field('body', seq('{', optional($.declaration_list), '}'))
-      )
-    ),
-
-    declaration_list: $ => repeat1($._declaration_statement),
-
-    struct_item: $ => seq(
-      optional_with_placeholder('modifier_list', $.visibility_modifier),
-      'struct',
-      field('name', $._type_identifier),
-      optional_with_placeholder('type_parameters_placeholder', $.type_parameters),
-      choice(
-        seq(
-          optional_with_placeholder('type_parameter_constraints_optional', $.where_clause),
-          field('body', $.field_declaration_list_block),
+    meta_arguments: $ =>
+      seq(
+        '(',
+        field(
+          'argument_list',
+          seq(sepBy(',', choice($.meta_item, $.literal_)), optional(','))
         ),
-        seq(
-          field('body', $.ordered_field_declaration_list_block),
-          optional_with_placeholder('type_parameter_constraints_optional', $.where_clause),
+        ')'
+      ),
+
+    mod_item: $ =>
+      seq(
+        optional_with_placeholder('modifier_list', $.visibility_modifier),
+        'mod',
+        field('name', $.identifier),
+        choice(
+          ';',
+          field('enclosed_body', seq('{', optional($.declaration_list), '}'))
+        )
+      ),
+
+    foreign_mod_item: $ =>
+      seq(
+        optional_with_placeholder('modifier_list', $.visibility_modifier),
+        $.extern_modifier,
+        choice(
+          ';',
+          field('enclosed_body', seq('{', optional($.declaration_list), '}'))
+        )
+      ),
+
+    declaration_list: $ => repeat1(alias($.declaration_statement_, $.member)),
+
+    struct: $ =>
+      seq(
+        optional_with_placeholder('modifier_list', $.visibility_modifier),
+        'struct',
+        field('identifier', $._type_identifier),
+        optional_with_placeholder(
+          'type_parameter_list_optional',
+          $.type_parameters
+        ),
+        choice(
+          $.struct_field_declaration_variant,
+          $.struct_ordered_field_declaration_variant,
           ';'
+        )
+      ),
+
+    struct_field_declaration_variant: $ =>
+      seq(
+        optional_with_placeholder(
+          'type_parameter_constraint_list_optional',
+          $.where_clause
+        ),
+        field('enclosed_body', $.struct_field_declaration_list_block)
+      ),
+
+    struct_ordered_field_declaration_variant: $ =>
+      seq(
+        field('enclosed_body', $.struct_ordered_field_declaration_list_block),
+        optional_with_placeholder(
+          'type_parameter_constraint_list_optional',
+          $.where_clause
         ),
         ';'
       ),
-    ),
 
-    union_item: $ => seq(
-      optional_with_placeholder('modifier_list', $.visibility_modifier),
-      'union',
-      field('name', $._type_identifier),
-      optional_with_placeholder('type_parameters_placeholder', $.type_parameters),
-      optional_with_placeholder('type_parameter_constraints_optional', $.where_clause),
-      field('body', $.field_declaration_list_block),
-    ),
+    union_item: $ =>
+      seq(
+        optional_with_placeholder('modifier_list', $.visibility_modifier),
+        'union',
+        field('name', $._type_identifier),
+        optional_with_placeholder(
+          'type_parameter_list_optional',
+          $.type_parameters
+        ),
+        optional_with_placeholder(
+          'type_parameter_constraint_list_optional',
+          $.where_clause
+        ),
+        field('enclosed_body', $.field_declaration_list_block)
+      ),
 
-    enum_item: $ => seq(
-      optional_with_placeholder('modifier_list', $.visibility_modifier),
-      'enum',
-      field('name', $._type_identifier),
-      optional_with_placeholder('type_parameters_placeholder', $.type_parameters),
-      optional_with_placeholder('type_parameter_constraints_optional', $.where_clause),
-      field('body', $.enum_variant_list)
-    ),
+    enum: $ =>
+      seq(
+        optional_with_placeholder('modifier_list', $.visibility_modifier),
+        'enum',
+        field('name', $._type_identifier),
+        optional_with_placeholder(
+          'type_parameter_list_optional',
+          $.type_parameters
+        ),
+        optional_with_placeholder(
+          'type_parameter_constraint_list_optional',
+          $.where_clause
+        ),
+        field('enclosed_body', $.enum_variant_list)
+      ),
 
-    enum_variant_list: $ => seq(
-      '{',
-      optional_with_placeholder('enum_member_list', seq(
-        sepBy(',', seq(repeat($.attribute_item), $.enum_variant)),
-        optional(',')
-      )),
-      '}'
-    ),
+    enum_variant_list: $ =>
+      seq(
+        '{',
+        optional_with_placeholder(
+          'enum_member_list',
+          seq(sepBy(',', alias($.enum_variant, $.member)), optional(','))
+        ),
+        '}'
+      ),
 
-    enum_variant: $ => seq(
-      optional_with_placeholder('modifier_list', $.visibility_modifier),
-      field('name', $.identifier),
-      field('body', optional(choice(
-        $.field_declaration_list_block,
-        $.ordered_field_declaration_list_block
-      ))),
-      optional(seq(
-        '=',
-        field('value', $._expression)
-      ))
-    ),
-
-    field_declaration_list_block: $ => seq(
-      '{', 
-      optional_with_placeholder('field_declaration_list_optional', $.field_declaration_list),
-      '}'
-    ),
-
-    field_declaration_list: $ => seq(
-      sepBy1(',', seq(repeat($.attribute_item), $.field_declaration)),
-      optional(','),
-    ),
-
-    field_declaration: $ => seq(
-      optional_with_placeholder('modifier_list', $.visibility_modifier),
-      field('field_assignment_variable', $._field_identifier),
-      $.colon_postfix_type
-    ),
-
-    ordered_field_declaration_list_block: $ => seq(
-      '(', 
-      optional_with_placeholder(
-        'ordered_field_declaration_list_optional', 
-        $.ordered_field_declaration_list
-        ), 
-      ')'
-    ),
-
-    ordered_field_declaration_list: $ => seq(
-      sepBy1(',', seq(
+    enum_variant: $ =>
+      seq(
         repeat($.attribute_item),
         optional_with_placeholder('modifier_list', $.visibility_modifier),
-        field('type', $._type)
-      )),
-      optional(',')
-    ),
-
-    extern_crate_declaration: $ => seq(
-      optional_with_placeholder('modifier_list', $.visibility_modifier),
-      'extern',
-      $.crate,
-      field('name', $.identifier),
-      optional(seq(
-        'as',
-        field('alias', $.identifier)
-      )),
-      ';'
-    ),
-
-
-    const_item: $ => seq(
-      optional_with_placeholder('modifier_list', $.visibility_modifier),
-      'const',
-      field('name', $.identifier),
-      $.colon_postfix_type,
-      optional(
-        seq(
-          '=',
-          field('assignment_value', $._expression),
+        field('name', $.identifier),
+        optional_with_placeholder(
+          'enclosed_body',
+          choice(
+            $.enum_field_declaration_list_block,
+            $.enum_ordered_field_declaration_list_block
+          )
         ),
+        optional(seq('=', field('value', $.expression)))
       ),
-      ';'
-    ),
 
-    static_item: $ => seq(
-      optional_with_placeholder('modifier_list', $.visibility_modifier),
-      'static',
+    struct_field_declaration_list_block: $ =>
+      seq(
+        '{',
+        optional_with_placeholder(
+          'struct_member_list',
+          $.field_declaration_list
+        ),
+        '}'
+      ),
 
-      // Not actual rust syntax, but made popular by the lazy_static crate.
-      optional('ref'),
+    enum_field_declaration_list_block: $ =>
+      seq(
+        '{',
+        optional_with_placeholder('enum_member_list', $.field_declaration_list),
+        '}'
+      ),
 
-      optional_with_placeholder('modifier_list', $.mutable_specifier),
-      field('name', $.identifier),
-      $.colon_postfix_type,
-      optional(seq(
+    field_declaration_list_block: $ =>
+      seq(
+        '{',
+        optional_with_placeholder('member_list', $.field_declaration_list),
+        '}'
+      ),
+
+    field_declaration_list: $ =>
+      seq(
+        sepBy1(',', field('member', seq(repeat($.attribute_item), $.property))),
+        optional(',')
+      ),
+
+    property: $ =>
+      seq(
+        optional_with_placeholder('modifier_list', $.visibility_modifier),
+        field('assignment_list', alias($.property_assignment, $.assignment))
+      ),
+
+    property_assignment: $ =>
+      seq(
+        field('assignment_variable', seq($._field_identifier, $.type_optional)),
+        optional_with_placeholder(
+          'assignment_value_list_optional',
+          '!!UNMATCHABLE_20a83a3h0'
+        )
+      ),
+
+    struct_ordered_field_declaration_list_block: $ =>
+      seq(
+        '(',
+        optional_with_placeholder(
+          'struct_member_list',
+          $.ordered_field_declaration_list
+        ),
+        ')'
+      ),
+
+    enum_ordered_field_declaration_list_block: $ =>
+      seq(
+        '(',
+        optional_with_placeholder(
+          'enum_member_list',
+          $.ordered_field_declaration_list
+        ),
+        ')'
+      ),
+
+    anonymous_property: $ =>
+      seq(
+        repeat($.attribute_item),
+        optional_with_placeholder('modifier_list', $.visibility_modifier),
+        field('type_optional', $.type_)
+      ),
+
+    ordered_field_declaration_list: $ =>
+      field(
+        'anonymous_property_list',
+        seq(sepBy1(',', alias($.anonymous_property, $.member)), optional(','))
+      ),
+
+    extern_crate_declaration: $ =>
+      seq(
+        optional_with_placeholder('modifier_list', $.visibility_modifier),
+        'extern',
+        $.crate,
+        field('name', $.identifier),
+        optional(seq('as', field('alias', $.identifier))),
+        ';'
+      ),
+
+    const_item: $ =>
+      seq(
+        optional_with_placeholder('modifier_list', $.visibility_modifier),
+        'const',
+        field('name', $.identifier),
+        $.type_optional,
+        optional(seq('=', field('assignment_value', $.expression))),
+        ';'
+      ),
+
+    static_item: $ =>
+      seq(
+        optional_with_placeholder('modifier_list', $.visibility_modifier),
+        'static',
+
+        // Not actual rust syntax, but made popular by the lazy_static crate.
+        optional('ref'),
+
+        optional_with_placeholder('second_modifier_list', $.mutable_specifier),
+        field('name', $.identifier),
+        $.type_optional,
+        optional(seq('=', field('value', $.expression))),
+        ';'
+      ),
+
+    type_item: $ =>
+      seq(
+        optional_with_placeholder('modifier_list', $.visibility_modifier),
+        'type',
+        field('name', $._type_identifier),
+        optional_with_placeholder(
+          'type_parameter_list_optional',
+          $.type_parameters
+        ),
         '=',
-        field('value', $._expression)
-      )),
-      ';'
-    ),
+        field('type', $.type_),
+        ';'
+      ),
 
-    type_item: $ => seq(
-      optional_with_placeholder('modifier_list', $.visibility_modifier),
-      'type',
-      field('name', $._type_identifier),
-      optional_with_placeholder('type_parameters_placeholder', $.type_parameters),
-      '=',
-      field('type', $._type),
-      ';'
-    ),
+    function_type_clause: $ => seq('->', field('type', $.type_)),
 
+    function: $ =>
+      seq(
+        optional_with_placeholder(
+          'modifier_list',
+          seq(optional($.visibility_modifier), optional($.function_modifiers))
+        ),
+        'fn',
+        field('name', choice($.identifier, $.metavariable)),
+        optional_with_placeholder(
+          'type_parameter_list_optional',
+          $.type_parameters
+        ),
+        field('parameters', $.parameters),
+        optional_with_placeholder(
+          'return_type_optional',
+          $.function_type_clause
+        ),
+        optional_with_placeholder(
+          'type_parameter_constraint_list_optional',
+          $.where_clause
+        ),
+        choice(';', $.enclosed_body)
+      ),
 
-    function_type_clause: $ => seq('->', field('return_type', $._type)), 
-
-    function_item: $ => seq(
-      optional_with_placeholder('function_modifier_list', seq(
-        optional($.visibility_modifier),
-        optional($.function_modifiers)
-      )),
-      'fn',
-      field('name', choice($.identifier, $.metavariable)),
-      optional_with_placeholder('type_parameters_placeholder', $.type_parameters),
-      field('parameters', $.parameters),
-      optional_with_placeholder('function_type_clause_optional', $.function_type_clause),
-      optional_with_placeholder('type_parameter_constraints_optional', $.where_clause),
-      field('body', $.block)
-    ),
-
-    function_signature_item: $ => seq(
-      optional_with_placeholder('function_modifier_list', seq(
-        optional($.visibility_modifier),
-        optional($.function_modifiers)
-      )),
-      'fn',
-      field('name', choice($.identifier, $.metavariable)),
-      optional_with_placeholder('type_parameters_placeholder', $.type_parameters),
-      field('parameters', $.parameters),
-      optional_with_placeholder('function_type_clause_optional', $.function_type_clause), 
-      optional_with_placeholder('type_parameter_constraints_optional', $.where_clause),
-      ';'
-    ),
-    
     unsafe_modifier: $ => 'unsafe',
 
-    function_modifier: $ => choice(
-      'async',
-      'default',
-      'const',
-      $.unsafe_modifier,
-      $.extern_modifier
-    ),
+    function_modifier: $ =>
+      field(
+        'modifier',
+        choice(
+          'async',
+          'default',
+          'const',
+          $.unsafe_modifier,
+          $.extern_modifier
+        )
+      ),
 
     function_modifiers: $ => repeat1($.function_modifier),
 
-    where_clause: $ => seq(
-      'where',
-      field('type_parameter_constraints_list', seq(
-        sepBy1(',', $.where_predicate),
-        optional(',')
-      ))
-    ),
+    where_clause: $ =>
+      seq(
+        'where',
+        field(
+          'type_parameter_constraint_list',
+          seq(
+            sepBy1(
+              ',',
+              alias($.where_predicate, $.type_parameter_constraint_type)
+            ),
+            optional(',')
+          )
+        )
+      ),
 
-    where_predicate: $ => seq(
-      field('left', choice(
-        $.lifetime,
-        $._type_identifier,
-        $.scoped_type_identifier,
-        $.generic_type,
-        $.reference_type,
-        $.pointer_type,
-        $.tuple_type,
-        $.higher_ranked_trait_bound,
-        alias(choice(...primitive_types), $.primitive_type)
-      )),
-      field('bounds', $.trait_bounds)
-    ),
+    where_predicate: $ =>
+      seq(
+        field(
+          'left',
+          choice(
+            $.lifetime,
+            $._type_identifier,
+            $.scoped_type_identifier,
+            $.generic_type,
+            $.reference_type,
+            $.pointer_type,
+            $.tuple_type,
+            $.higher_ranked_trait_bound,
+            $.primitive_type
+          )
+        ),
+        field('bounds', $.trait_bounds)
+      ),
 
-    impl_item_body: $ => seq(
-      '{',
-      optional_with_placeholder('implementation_member_list', optional($.declaration_list)),
-      '}'
-    ), 
+    impl_item_body: $ =>
+      seq(
+        '{',
+        optional_with_placeholder(
+          'implementation_member_list',
+          optional($.declaration_list)
+        ),
+        '}'
+      ),
 
-    impl_trait_clause: $ => seq(
-      field('trait_identifier', choice(
-        $._type_identifier,
-        $.scoped_type_identifier,
-        $.generic_type
-      ))
-    ),
+    implements_list: $ =>
+      seq(
+        field(
+          'implements_type',
+          choice($._type_identifier, $.scoped_type_identifier, $.generic_type)
+        )
+      ),
 
-    impl_item: $ => seq(
-      optional_with_placeholder('modifier_list', $.unsafe_modifier),
-      'impl',
-      optional_with_placeholder('type_parameters_placeholder', $.type_parameters),
-      optional_with_placeholder('implements_list_optional', seq($.impl_trait_clause, 'for')),
-      field('name', $._type), // Serenade: The class we're implementing the trait for.
-      optional_with_placeholder('type_parameter_constraints_optional', $.where_clause),
-      alias($.impl_item_body, $.block)
-    ),
+    implementation: $ =>
+      seq(
+        optional_with_placeholder('modifier_list', $.unsafe_modifier),
+        'impl',
+        optional_with_placeholder(
+          'type_parameter_list_optional',
+          $.type_parameters
+        ),
+        optional_with_placeholder(
+          'implements_list_optional',
+          seq($.implements_list, 'for')
+        ),
+        field('identifier', $.type_), // Serenade: The class we're implementing the trait for.
+        optional_with_placeholder(
+          'type_parameter_constraint_list_optional',
+          $.where_clause
+        ),
+        alias($.impl_item_body, $.enclosed_body)
+      ),
 
-    trait_item_body: $ => seq('{', 
-      optional_with_placeholder('trait_member_list', $.declaration_list),
-      '}'),
+    trait_item_body: $ =>
+      seq(
+        '{',
+        optional_with_placeholder('trait_member_list', $.declaration_list),
+        '}'
+      ),
 
-    trait_item: $ => seq(
-      optional_with_placeholder('modifier_list', seq(
-        optional($.visibility_modifier), optional($.unsafe_modifier)
-      )),
-      'trait',
-      field('name', $._type_identifier),
-      optional_with_placeholder('type_parameters_placeholder', $.type_parameters),
-      optional_with_placeholder('trait_bounds_optional', $.trait_bounds),
-      optional_with_placeholder('type_parameter_constraints_optional', $.where_clause),
-      alias($.trait_item_body, $.block)
-    ),
+    trait: $ =>
+      seq(
+        optional_with_placeholder(
+          'modifier_list',
+          seq(optional($.visibility_modifier), optional($.unsafe_modifier))
+        ),
+        'trait',
+        field('name', $._type_identifier),
+        optional_with_placeholder(
+          'type_parameter_list_optional',
+          $.type_parameters
+        ),
+        optional_with_placeholder('trait_bounds_optional', $.trait_bounds),
+        optional_with_placeholder(
+          'type_parameter_constraint_list_optional',
+          $.where_clause
+        ),
+        alias($.trait_item_body, $.enclosed_body)
+      ),
 
-    associated_type: $ => seq(
-      'type',
-      field('name', $._type_identifier),
-      optional_with_placeholder('trait_bounds_optional', $.trait_bounds),
-      ';'
-    ),
+    associated_type: $ =>
+      seq(
+        'type',
+        field('name', $._type_identifier),
+        optional_with_placeholder(
+          'type_parameter_constraint_list_optional',
+          $.trait_bounds
+        ),
+        ';'
+      ),
 
-    trait_bounds: $ => seq(
-      ':',
-      field('trait_bound', 
-        sepBy1('+', choice(
-          $._type,
-          $.lifetime,
-          $.higher_ranked_trait_bound,
-          $.removed_trait_bound
-        ))
-      )
-    ),
+    trait_bounds: $ =>
+      seq(
+        ':',
+        field(
+          'trait_bound',
+          sepBy1(
+            '+',
+            choice(
+              $.type_,
+              $.lifetime,
+              $.higher_ranked_trait_bound,
+              $.removed_trait_bound
+            )
+          )
+        )
+      ),
 
-    higher_ranked_trait_bound: $ => seq(
-      'for',
-      field('type_parameters', $.type_parameters),
-      field('type', $._type)
-    ),
+    higher_ranked_trait_bound: $ =>
+      seq(
+        'for',
+        field('type_parameters', $.type_parameters),
+        field('type', $.type_)
+      ),
 
-    removed_trait_bound: $ => seq(
-      '?',
-      $._type
-    ),
+    removed_trait_bound: $ => seq('?', $.type_),
 
-    type_parameters: $ => prec(1, seq(
-      '<',
-      sepBy1(',', choice(
+    type_parameter: $ =>
+      choice(
         $.lifetime,
         $.metavariable,
         $._type_identifier,
         $.constrained_type_parameter,
         $.optional_type_parameter,
-        $.const_parameter,
-      )),
-      optional(','),
-      '>'
-    )),
+        $.const_parameter
+      ),
 
-    const_parameter: $ => seq(
-      'const',
-      field('name', $.identifier),
-      $.colon_postfix_type
-    ),
+    type_parameters: $ =>
+      prec(
+        1,
+        seq(
+          '<',
+          field(
+            'type_parameter_list',
+            seq(sepBy1(',', $.type_parameter), optional(','))
+          ),
+          '>'
+        )
+      ),
 
-    constrained_type_parameter: $ => seq(
-      field('left', choice($.lifetime, $._type_identifier)),
-      field('bounds', $.trait_bounds)
-    ),
+    const_parameter: $ =>
+      seq('const', field('name', $.identifier), $.type_optional),
 
-    optional_type_parameter: $ => seq(
-      field('name', choice(
-        $._type_identifier,
-        $.constrained_type_parameter
-      )),
-      '=',
-      field('default_type', $._type)
-    ),
+    constrained_type_parameter: $ =>
+      seq(
+        field('left', choice($.lifetime, $._type_identifier)),
+        field('bounds', $.trait_bounds)
+      ),
 
-    assignment: $ => seq(
-      field('assignment_variable', $._pattern),
-      optional_with_placeholder('optional_colon_postfix_type', $.colon_postfix_type),
-      optional(seq(
+    optional_type_parameter: $ =>
+      seq(
+        field('name', choice($._type_identifier, $.constrained_type_parameter)),
         '=',
-        field('assignment_value', $._expression)
-      ))
-    ), 
+        field('default_type', $.type_)
+      ),
 
-    let_declaration: $ => seq(
-      'let',
-      optional_with_placeholder('modifier_list', $.mutable_specifier),
-      $.assignment, 
-      ';'
-    ),
+    assignment: $ =>
+      seq(
+        field('assignment_variable', $.pattern_),
+        optional_with_placeholder('type_optional', $.type_optional),
+        optional_with_placeholder(
+          'assignment_value_list_optional',
+          seq('=', alias($.expression, $.assignment_value))
+        )
+      ),
 
-    using: $ => seq(
-      optional_with_placeholder('modifier_list', $.visibility_modifier),
-      'use',
-      field('identifier', $._use_clause)
-    ), 
+    let_declaration: $ =>
+      seq(
+        'let',
+        optional_with_placeholder('modifier_list', $.mutable_specifier),
+        field('assignment_list', $.assignment),
+        ';'
+      ),
 
-    use_declaration: $ => seq(
-      $.using,
-      ';'
-    ),
+    using: $ =>
+      seq(
+        optional_with_placeholder('modifier_list', $.visibility_modifier),
+        'use',
+        field('identifier', $._use_clause)
+      ),
 
-    _use_clause: $ => choice(
-      $._path,
-      $.use_as_clause,
-      $.use_list,
-      $.scoped_use_list,
-      $.use_wildcard
-    ),
+    use_declaration: $ => seq($.using, ';'),
 
-    scoped_use_list: $ => seq(
-      field('path', optional($._path)),
-      '::',
-      field('list', $.use_list)
-    ),
+    _use_clause: $ =>
+      choice(
+        $._path,
+        $.use_as_clause,
+        $.use_list,
+        $.scoped_use_list,
+        $.use_wildcard
+      ),
 
-    use_list: $ => seq(
-      '{',
-      sepBy(',', choice(
-        $._use_clause
-      )),
-      optional(','),
-      '}'
-    ),
+    scoped_use_list: $ =>
+      seq(optional(field('path', $._path)), '::', field('list', $.use_list)),
 
-    use_as_clause: $ => seq(
-      field('path', $._path),
-      'as',
-      field('alias', $.identifier)
-    ),
+    use_list: $ =>
+      seq('{', sepBy(',', choice($._use_clause)), optional(','), '}'),
 
-    use_wildcard: $ => seq(
-      optional(seq($._path, '::')),
-      '*'
-    ),
+    use_as_clause: $ =>
+      seq(field('path', $._path), 'as', field('alias', $.identifier)),
 
-    parameter: $ => seq(
-      optional($.attribute_item),
-      field('name', choice(
-        $.simple_parameter,
-        $.self_parameter,
-        $.variadic_parameter,
-        '_',
-        $._type
-      ))
-    ),
+    use_wildcard: $ => seq(optional(seq($._path, '::')), '*'),
 
-    parameters: $ => seq(
-      '(',
-      optional_with_placeholder('parameter_list', seq(
-        sepBy(',', $.parameter),
-        optional(',')
-      )),
-      ')'
-    ),
+    parameter: $ =>
+      seq(
+        optional($.attribute_item),
+        choice(
+          $.simple_parameter,
+          $.self_parameter,
+          field('identifier', choice($.variadic_parameter, '_', $.type_))
+        )
+      ),
 
-    self_parameter: $ => seq(
-      optional('&'),
-      optional($.lifetime),
-      optional_with_placeholder('modifier_list', $.mutable_specifier),
-      $.self
-    ),
+    parameters: $ =>
+      seq(
+        '(',
+        optional_with_placeholder(
+          'parameter_list',
+          seq(sepBy(',', $.parameter), optional(','))
+        ),
+        ')'
+      ),
+
+    self_parameter: $ =>
+      seq(
+        optional('&'),
+        optional($.lifetime),
+        optional_with_placeholder('modifier_list', $.mutable_specifier),
+        field('identifier', $.self)
+      ),
 
     variadic_parameter: $ => '...',
 
-    simple_parameter: $ => seq(
-      optional_with_placeholder('modifier_list', $.mutable_specifier),
-      field('pattern', choice(
-        $._pattern,
-        $.self,
-        $._reserved_identifier,
-      )),
-      $.colon_postfix_type
-    ),
+    simple_parameter: $ =>
+      seq(
+        optional_with_placeholder('modifier_list', $.mutable_specifier),
+        field('identifier', choice($.pattern_, $.self, $._reserved_identifier)),
+        $.type_optional
+      ),
 
-    extern_modifier: $ => seq(
-      'extern',
-      optional($.string_literal)
-    ),
+    extern_modifier: $ => seq('extern', optional($.string_literal)),
 
-    visibility_modifier: $ => prec.right(
-      choice(
-        $.crate,
-        seq(
-          'pub',
-          optional(seq(
-            '(',
-            choice(
-              $.self,
-              $.super,
-              $.crate,
-              seq('in', $._path)
-            ),
-            ')'
-          )),
-        ),
-      )),
+    visibility_modifier: $ =>
+      prec.right(
+        field(
+          'modifier',
+          choice(
+            $.crate,
+            seq(
+              'pub',
+              optional(
+                seq(
+                  '(',
+                  choice($.self, $.super, $.crate, seq('in', $._path)),
+                  ')'
+                )
+              )
+            )
+          )
+        )
+      ),
 
     // Section - Types
 
-    _type: $ => choice(
-      $.abstract_type,
-      $.reference_type,
-      $.metavariable,
-      $.pointer_type,
-      $.generic_type,
-      $.scoped_type_identifier,
-      $.tuple_type,
-      $.unit_type,
-      $.array_type,
-      $.function_type,
-      $._type_identifier,
-      $.macro_invocation,
-      $.empty_type,
-      $.dynamic_type,
-      $.bounded_type,
-      alias(choice(...primitive_types), $.primitive_type)
-    ),
-
-    colon_postfix_type: $ => seq(
-      ':', 
-      field('type', $._type)
-    ),
-
-    bracketed_type: $ => seq(
-      '<',
+    type_: $ =>
       choice(
-        $._type,
-        $.qualified_type
+        $.abstract_type,
+        $.reference_type,
+        $.metavariable,
+        $.pointer_type,
+        $.generic_type,
+        $.scoped_type_identifier,
+        $.tuple_type,
+        $.unit_type,
+        $.array_type,
+        $.function_type,
+        $._type_identifier,
+        $.macro_invocation,
+        $.empty_type,
+        $.dynamic_type,
+        $.bounded_type,
+        $.primitive_type
       ),
-      '>'
-    ),
 
-    qualified_type: $ => seq(
-      field('type', $._type),
-      'as',
-      field('alias', $._type)
-    ),
+    type_optional: $ => seq(':', field('type', $.type_)),
+
+    bracketed_type: $ => seq('<', choice($.type_, $.qualified_type), '>'),
+
+    qualified_type: $ =>
+      seq(field('type', $.type_), 'as', field('alias', $.type_)),
 
     lifetime: $ => seq("'", $.identifier),
 
-    array_type: $ => seq(
-      '[',
-      field('element', $._type),
-      optional(seq(
-        ';',
-        field('length', $._expression)
-      )),
-      ']'
-    ),
+    array_type: $ =>
+      seq(
+        '[',
+        field('element', $.type_),
+        optional(seq(';', field('length', $.expression))),
+        ']'
+      ),
 
-    for_lifetimes: $ => seq(
-      'for',
-      '<',
-      sepBy1(',', $.lifetime),
-      optional(','),
-      '>'
-    ),
+    for_lifetimes: $ =>
+      seq('for', '<', sepBy1(',', $.lifetime), optional(','), '>'),
 
-    function_type: $ => seq(
-      optional($.for_lifetimes),
-      prec(PREC.call, seq(
-        choice(
-          field('trait_identifier', choice(
-            $._type_identifier,
-            $.scoped_type_identifier
-          )),
+    function_type: $ =>
+      seq(
+        optional($.for_lifetimes),
+        prec(
+          PREC.call,
           seq(
-            optional($.function_modifiers),
-            'fn'
+            choice(
+              field(
+                'implements_type',
+                choice($._type_identifier, $.scoped_type_identifier)
+              ),
+              seq(optional($.function_modifiers), 'fn')
+            ),
+            field('parameters', $.parameters)
           )
         ),
-        field('parameters', $.parameters)
-      )),
-      optional_with_placeholder('function_type_clause', $.function_type_clause)
-    ),
+        optional_with_placeholder(
+          'return_type_optional',
+          $.function_type_clause
+        )
+      ),
 
-    tuple_type: $ => seq(
-      '(',
-      sepBy1(',', $._type),
-      optional(','),
-      ')'
-    ),
+    primitive_type: $ => choice(...primitive_types),
+
+    tuple_type: $ => seq('(', sepBy1(',', $.type_), optional(','), ')'),
 
     unit_type: $ => seq('(', ')'),
 
-    generic_function: $ => prec(1, seq(
-      field('function', choice(
-        $.identifier,
-        $.scoped_identifier,
-        $.field_expression
-      )),
-      '::',
-      field('type_arguments', $.type_arguments)
-    )),
+    generic_function: $ =>
+      prec(
+        1,
+        seq(
+          field(
+            'function_',
+            choice($.identifier, $.scoped_identifier, $.field_expression)
+          ),
+          '::',
+          field('type_arguments', $.type_arguments)
+        )
+      ),
 
-    generic_type: $ => prec(1, seq(
-      field('type', choice(
-        $._type_identifier,
-        $.scoped_type_identifier
-      )),
-      field('type_arguments', $.type_arguments)
-    )),
+    generic_type: $ =>
+      prec(
+        1,
+        seq(
+          field('type', choice($._type_identifier, $.scoped_type_identifier)),
+          field('type_arguments', $.type_arguments)
+        )
+      ),
 
-    generic_type_with_turbofish: $ => seq(
-      field('type', choice(
-        $._type_identifier,
-        $.scoped_identifier
-      )),
-      '::',
-      field('type_arguments', $.type_arguments)
-    ),
+    generic_type_with_turbofish: $ =>
+      seq(
+        field('type', choice($._type_identifier, $.scoped_identifier)),
+        '::',
+        field('type_arguments', $.type_arguments)
+      ),
 
-    bounded_type: $ => prec.left(-1, choice(
-      seq($.lifetime, '+', $._type),
-      seq($._type, '+', $._type),
-      seq($._type, '+', $.lifetime)
-    )),
+    bounded_type: $ =>
+      prec.left(
+        -1,
+        choice(
+          seq($.lifetime, '+', $.type_),
+          seq($.type_, '+', $.type_),
+          seq($.type_, '+', $.lifetime)
+        )
+      ),
 
-    type_arguments: $ => seq(
-      token(prec(1, '<')),
-      sepBy1(',', choice(
-        $._type,
-        $.type_binding,
-        $.lifetime,
-        $._literal,
-        $.block,
-      )),
-      optional(','),
-      '>'
-    ),
+    type_arguments: $ =>
+      seq(
+        token(prec(1, '<')),
+        sepBy1(
+          ',',
+          choice(
+            $.type_,
+            $.type_binding,
+            $.lifetime,
+            $.literal_,
+            $.enclosed_body
+          )
+        ),
+        optional(','),
+        '>'
+      ),
 
-    type_binding: $ => seq(
-      field('name', $._type_identifier),
-      '=',
-      field('type', $._type)
-    ),
+    type_binding: $ =>
+      seq(field('name', $._type_identifier), '=', field('type', $.type_)),
 
-    reference_type: $ => seq(
-      '&',
-      optional($.lifetime),
-      optional_with_placeholder('modifier_list', $.mutable_specifier),
-      field('type', $._type)
-    ),
+    reference_type: $ =>
+      seq(
+        '&',
+        optional($.lifetime),
+        optional_with_placeholder('modifier_list', $.mutable_specifier),
+        field('type', $.type_)
+      ),
 
-    pointer_type: $ => seq(
-      '*',
-      choice('const', $.mutable_specifier),
-      field('type', $._type)
-    ),
+    pointer_type: $ =>
+      seq('*', choice('const', $.mutable_specifier), field('type', $.type_)),
 
     empty_type: $ => '!',
 
-    abstract_type: $ => seq(
-      'impl',
-      field('trait_identifier', choice(
-        $._type_identifier,
-        $.scoped_type_identifier,
-        $.generic_type,
-        $.function_type
-      ))
-    ),
+    abstract_type: $ =>
+      seq(
+        'impl',
+        field(
+          'implements_type',
+          choice(
+            $._type_identifier,
+            $.scoped_type_identifier,
+            $.generic_type,
+            $.function_type
+          )
+        )
+      ),
 
-    dynamic_type: $ => seq(
-      'dyn',
-      field('trait_identifier', choice(
-        $._type_identifier,
-        $.scoped_type_identifier,
-        $.generic_type,
-        $.function_type
-      ))
-    ),
+    dynamic_type: $ =>
+      seq(
+        'dyn',
+        field(
+          'implements_type',
+          choice(
+            $._type_identifier,
+            $.scoped_type_identifier,
+            $.generic_type,
+            $.function_type
+          )
+        )
+      ),
 
-    mutable_specifier: $ => 'mut',
+    mutable_specifier: $ => field('modifier', 'mut'),
 
     // Section - Expressions
 
-    _expression: $ => choice(
-      $.unary_expression,
-      $.reference_expression,
-      $.try_expression,
-      $.binary_expression,
-      $.assignment_expression,
-      $.compound_assignment_expr,
-      $.type_cast_expression,
-      $.range_expression,
-      $.call_expression,
-      $.return_expression,
-      $._literal,
-      prec.left($.identifier),
-      alias(choice(...primitive_types), $.identifier),
-      prec.left($._reserved_identifier),
-      $.self,
-      $.scoped_identifier,
-      $.generic_function,
-      $.await_expression,
-      $.field_expression,
-      $.array_expression,
-      $.tuple_expression,
-      prec(1, $.macro_invocation),
-      $.unit_expression,
-      $._expression_ending_with_block,
-      $.break_expression,
-      $.continue_expression,
-      $.index_expression,
-      $.metavariable,
-      $.closure_expression,
-      $.parenthesized_expression,
-      $.struct_expression
-    ),
-
-    _expression_ending_with_block: $ => choice(
-      $.unsafe_block,
-      $.async_block,
-      $.block,
-      $.if_expression,
-      $.if_let_expression,
-      $.match_expression,
-      $.while_expression,
-      $.while_let_expression,
-      $.loop_expression,
-      $.for_expression,
-      $.const_block
-    ),
-
-    macro_invocation: $ => seq(
-      field('macro', choice(
+    expression: $ =>
+      choice(
+        $.unary_expression,
+        $.reference_expression,
+        $.try_expression,
+        $.binary_expression,
+        $.assignment_expression,
+        $.compound_assignment_expr,
+        $.type_cast_expression,
+        $.range_expression,
+        alias($.call_expression, $.call),
+        $.return,
+        $.literal_,
+        prec.left($.identifier),
+        $.primitive_type_identifiers,
+        prec.left($._reserved_identifier),
+        $.self,
         $.scoped_identifier,
-        $.identifier,
-        $._reserved_identifier,
-      )),
-      '!',
-      $.token_tree
-    ),
-
-    scoped_identifier: $ => seq(
-      field('path', optional(choice(
-        $._path,
-        $.bracketed_type,
-        alias($.generic_type_with_turbofish, $.generic_type)
-      ))),
-      '::',
-      field('name', $.identifier)
-    ),
-
-    scoped_type_identifier_in_expression_position: $ => prec(-2, seq(
-      field('path', optional(choice(
-        $._path,
-        alias($.generic_type_with_turbofish, $.generic_type)
-      ))),
-      '::',
-      field('name', $._type_identifier)
-    )),
-
-    scoped_type_identifier: $ => seq(
-      field('path', optional(choice(
-        $._path,
-        alias($.generic_type_with_turbofish, $.generic_type_duplicate),
-        $.bracketed_type,
-        $.generic_type
-      ))),
-      '::',
-      field('name', $._type_identifier)
-    ),
-
-    range_expression: $ => prec.left(PREC.range, choice(
-      prec.left(
-        PREC.range + 1,
-        seq($._expression, choice('..', '...', '..='), $._expression)
+        $.generic_function,
+        $.await_expression,
+        $.field_expression,
+        $.array_expression,
+        $.tuple_expression,
+        prec(1, $.macro_invocation),
+        $.unit_expression,
+        $._expression_ending_with_block,
+        $.break_expression,
+        $.continue_expression,
+        $.index_expression,
+        $.metavariable,
+        $.lambda,
+        $.parenthesized_expression,
+        $.struct_expression
       ),
-      seq($._expression, '..'),
-      seq('..', $._expression),
-      '..'
-    )),
 
-    unary_expression: $ => prec(PREC.unary, seq(
-      choice('-', '*', '!'),
-      $._expression
-    )),
+    _expression_ending_with_block: $ =>
+      choice(
+        $.unsafe_block,
+        $.async_block,
+        $.enclosed_body,
+        $.if,
+        $.match_expression,
+        $.while,
+        $.loop,
+        $.for,
+        $.const_block
+      ),
 
-    try_expression: $ => seq(
-      $._expression,
-      '?'
-    ),
+    macro_invocation: $ =>
+      seq(
+        field(
+          'macro',
+          choice($.scoped_identifier, $.identifier, $._reserved_identifier)
+        ),
+        '!',
+        $.token_tree
+      ),
 
-    reference_expression: $ => prec(PREC.unary, seq(
-      '&',
-      optional_with_placeholder('modifier_list', $.mutable_specifier),
-      field('value', $._expression)
-    )),
+    scoped_identifier: $ =>
+      seq(
+        optional(
+          choice(
+            $._path,
+            $.bracketed_type,
+            alias($.generic_type_with_turbofish, $.generic_type)
+          )
+        ),
+        '::',
+        field('name', $.identifier)
+      ),
+
+    scoped_type_identifier_in_expression_position: $ =>
+      prec(
+        -2,
+        seq(
+          optional(
+            choice(
+              $._path,
+              alias($.generic_type_with_turbofish, $.generic_type)
+            )
+          ),
+          '::',
+          field('name', $._type_identifier)
+        )
+      ),
+
+    scoped_type_identifier: $ =>
+      seq(
+        optional(
+          choice(
+            $._path,
+            alias($.generic_type_with_turbofish, $.generic_type_duplicate),
+            $.bracketed_type,
+            $.generic_type
+          )
+        ),
+        '::',
+        field('name', $._type_identifier)
+      ),
+
+    range_expression: $ =>
+      prec.left(
+        PREC.range,
+        choice(
+          prec.left(
+            PREC.range + 1,
+            seq($.expression, choice('..', '...', '..='), $.expression)
+          ),
+          seq($.expression, '..'),
+          seq('..', $.expression),
+          '..'
+        )
+      ),
+
+    unary_expression: $ =>
+      prec(PREC.unary, seq(choice('-', '*', '!'), $.expression)),
+
+    try_expression: $ => seq($.expression, '?'),
+
+    reference_expression: $ =>
+      prec(
+        PREC.unary,
+        seq(
+          '&',
+          optional_with_placeholder('modifier_list', $.mutable_specifier),
+          field('value', $.expression)
+        )
+      ),
 
     binary_expression: $ => {
       const table = [
@@ -1003,557 +1150,585 @@ module.exports = grammar({
         [PREC.shift, choice('<<', '>>')],
         [PREC.additive, choice('+', '-')],
         [PREC.multiplicative, choice('*', '/', '%')],
-      ];
+      ]
 
-      return choice(...table.map(([precedence, operator]) => prec.left(precedence, seq(
-        field('left', $._expression),
-        field('operator', operator),
-        field('right', $._expression),
-      ))));
+      return choice(
+        ...table.map(([precedence, operator]) =>
+          prec.left(
+            precedence,
+            seq(
+              field('left', $.expression),
+              field('operator', operator),
+              field('right', $.expression)
+            )
+          )
+        )
+      )
     },
 
-    assignment_expression: $ => prec.left(PREC.assign, seq(
-      field('left', $._expression),
-      '=',
-      field('right', $._expression)
-    )),
+    assignment_expression: $ =>
+      prec.left(
+        PREC.assign,
+        seq(field('left', $.expression), '=', field('right', $.expression))
+      ),
 
-    compound_assignment_expr: $ => prec.left(PREC.assign, seq(
-      field('left', $._expression),
-      field('operator', choice('+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>=')),
-      field('right', $._expression)
-    )),
-
-    type_cast_expression: $ => seq(
-      field('value', $._expression),
-      'as',
-      field('type', $._type)
-    ),
-
-    return_expression: $ => choice(
-      prec.left(seq(
-        'return', 
-        field('return_value', $._expression)
-      )),
-      prec(-1, seq(
-        'return', 
-        optional_with_placeholder('empty_return_value', '!unmatchableStringToEnforcePlaceholder!')
-      )),
-    ),
-
-    call_expression: $ => prec(PREC.call, seq(
-      field('function', $._expression),
-      '(',
-      field('arguments', seq(
-        sepBy(',', $.argument),
-        optional(',')
-      )),
-      ')'
-    )),
-
-    argument: $ => seq(repeat($.attribute_item), $._expression),
-
-    array_expression: $ => seq(
-      '[',
-      repeat($.attribute_item),
-      choice(
+    compound_assignment_expr: $ =>
+      prec.left(
+        PREC.assign,
         seq(
-          $._expression,
-          ';',
-          field('length', $._expression)
-        ),
-        seq(
-          sepBy(',', $._expression),
-          optional(',')
+          field('left', $.expression),
+          field(
+            'operator',
+            choice('+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>=')
+          ),
+          field('right', $.expression)
         )
       ),
-      ']'
-    ),
 
-    parenthesized_expression: $ => seq(
-      '(',
-      $._expression,
-      ')'
-    ),
+    type_cast_expression: $ =>
+      seq(field('value', $.expression), 'as', field('type', $.type_)),
 
-    tuple_expression: $ => seq(
-      '(',
-      repeat($.attribute_item),
-      seq($._expression, ','),
-      repeat(seq($._expression, ',')),
-      optional($._expression),
-      ')'
-    ),
+    empty_return: $ =>
+      seq(
+        'return',
+        optional_with_placeholder(
+          'return_value_optional',
+          '!unmatchableStringToEnforcePlaceholder!'
+        )
+      ),
+
+    return: $ =>
+      choice(
+        prec.left(
+          seq(
+            'return',
+            field('return_value_optional', alias($.expression, $.return_value))
+          )
+        ),
+        prec(-1, $.empty_return)
+      ),
+
+    call_expression: $ =>
+      prec(
+        PREC.call,
+        seq(
+          field('function_', $.expression),
+          '(',
+          field('argument_list', seq(sepBy(',', $.argument), optional(','))),
+          ')'
+        )
+      ),
+
+    argument: $ => seq(repeat($.attribute_item), $.expression),
+
+    array_expression: $ =>
+      seq(
+        '[',
+        repeat($.attribute_item),
+        choice(
+          seq($.expression, ';', field('length', $.expression)),
+          seq(sepBy(',', $.expression), optional(','))
+        ),
+        ']'
+      ),
+
+    parenthesized_expression: $ => seq('(', $.expression, ')'),
+
+    tuple_expression: $ =>
+      seq(
+        '(',
+        repeat($.attribute_item),
+        seq($.expression, ','),
+        repeat(seq($.expression, ',')),
+        optional($.expression),
+        ')'
+      ),
 
     unit_expression: $ => seq('(', ')'),
 
-    struct_expression: $ => seq(
-      field('name', choice(
-        $._type_identifier,
-        alias($.scoped_type_identifier_in_expression_position, $.scoped_type_identifier),
-        $.generic_type_with_turbofish
-      )),
-      field('body', $.field_initializer_list)
-    ),
+    struct_expression: $ =>
+      seq(
+        field(
+          'name',
+          choice(
+            $._type_identifier,
+            alias(
+              $.scoped_type_identifier_in_expression_position,
+              $.scoped_type_identifier
+            ),
+            $.generic_type_with_turbofish
+          )
+        ),
+        field('enclosed_body', $.field_initializer_list_block)
+      ),
 
-    field_initializer_list: $ => seq(
-      '{',
-      field('field_initializer_list_inner', seq(
-        sepBy(',', choice(
-          $.shorthand_field_initializer,
-          $.field_initializer,
-          $.base_field_initializer
-        )),
+    field_initializer_list_block: $ =>
+      seq(
+        '{',
+        field(
+          'class_member_list',
+          seq(sepBy(',', alias($.class_member, $.member)), optional(','))
+        ),
+        '}'
+      ),
+
+    class_member: $ =>
+      choice(
+        $.shorthand_field_initializer,
+        $.field_initializer,
+        $.base_field_initializer
+      ),
+
+    shorthand_field_initializer: $ =>
+      seq(repeat($.attribute_item), $.identifier),
+
+    field_initializer: $ =>
+      seq(
+        repeat($.attribute_item),
+        field('name', $._field_identifier),
+        ':',
+        field('value', $.expression)
+      ),
+
+    base_field_initializer: $ => seq('..', $.expression),
+
+    if_clause: $ =>
+      seq(
+        'if',
+        field('condition', $.expression),
+        field('if_consequence', $.enclosed_body)
+      ),
+
+    else_if_clause: $ => choice($.else_if_plain_clause, $.else_if_let_clause),
+
+    else_if_plain_clause: $ =>
+      prec.dynamic(
+        1,
+        seq(
+          'else',
+          'if',
+          field('condition', $.expression),
+          field('if_consequence', $.enclosed_body)
+        )
+      ),
+
+    if_let_clause: $ =>
+      seq(
+        'if',
+        field(
+          'condition',
+          seq(
+            'let',
+            $.pattern_, // pattern
+            '=',
+            $.expression // value
+          )
+        ),
+        field('if_consequence', $.enclosed_body)
+      ),
+
+    else_if_let_clause: $ =>
+      prec.dynamic(
+        1,
+        seq(
+          'else',
+          'if',
+          field(
+            'condition',
+            seq(
+              'let',
+              $.pattern_, // pattern
+              '=',
+              $.expression // value
+            )
+          ),
+          field('if_consequence', $.enclosed_body)
+        )
+      ),
+
+    if: $ => choice($.if_expression, $.if_let_expression),
+
+    if_expression: $ =>
+      seq(
+        $.if_clause,
+        optional_with_placeholder(
+          'else_if_clause_list',
+          repeat($.else_if_clause)
+        ),
+        optional_with_placeholder('else_clause_optional', $.else_clause)
+      ),
+
+    if_let_expression: $ =>
+      seq(
+        alias($.if_let_clause, $.if_clause),
+        optional_with_placeholder(
+          'else_if_clause_list',
+          repeat($.else_if_clause)
+        ),
+        optional_with_placeholder('else_clause_optional', $.else_clause)
+      ),
+
+    else_clause: $ => seq('else', $.enclosed_body),
+
+    match_expression: $ =>
+      seq(
+        'match',
+        field('value', $.expression),
+        field('enclosed_body', $.match_block)
+      ),
+
+    match_block: $ =>
+      seq('{', optional(seq(repeat($.match_arm), $.last_match_arm)), '}'),
+
+    match_arm: $ =>
+      seq(
+        repeat($.attribute_item),
+        field('pattern', choice($.macro_invocation, $.match_pattern)),
+        '=>',
+        choice(seq($.expression, ','), prec(1, $._expression_ending_with_block))
+      ),
+
+    last_match_arm: $ =>
+      seq(
+        repeat($.attribute_item),
+        field('pattern', $.match_pattern),
+        '=>',
+        field('value', $.expression),
         optional(',')
-      )),
-      '}'
-    ),
+      ),
 
-    shorthand_field_initializer: $ => seq(
-      repeat($.attribute_item),
-      $.identifier
-    ),
+    match_pattern: $ =>
+      seq($.pattern_, optional(seq('if', field('condition', $.expression)))),
 
-    field_initializer: $ => seq(
-      repeat($.attribute_item),
-      field('name', $._field_identifier),
-      ':',
-      field('value', $._expression)
-    ),
+    while: $ =>
+      seq(
+        optional_with_placeholder(
+          'loop_label_optional',
+          seq($.loop_label, ':')
+        ),
+        field(
+          'while_clause',
+          choice($.while_expression, $.while_let_expression)
+        )
+      ),
 
-    base_field_initializer: $ => seq(
-      '..',
-      $._expression
-    ),
+    while_expression: $ =>
+      seq('while', field('condition', $.expression), $.enclosed_body),
 
-    if_clause: $ => seq(
-      'if',
-      field('if_condition', $._expression),
-      field('if_consequence', $.block)
-    ),
-
-    else_if_clause: $ => prec(1, seq(
-      'else', 
-      'if',
-      field('if_condition', $._expression),
-      field('if_consequence', $.block)
-    )),
-
-    if_let_clause: $ => seq(
-      'if',
-      field('if_condition', seq(
-        'let', 
-        $._pattern, // pattern
+    while_let_condition: $ =>
+      seq(
+        'let',
+        field('pattern', $.pattern_),
         '=',
-        $._expression // value
-      )), 
-      field('if_consequence', $.block)
-    ),
-
-    else_if_let_clause: $ => prec(1, seq(
-      'else', 
-      'if',
-      field('if_condition', seq(
-        'let', 
-        $._pattern, // pattern
-        '=',
-        $._expression // value
-      )), 
-      field('if_consequence', $.block)
-    )),
-    
-
-    if_expression: $ => seq(
-      $.if_clause, 
-      optional_with_placeholder('else_if_list', 
-        repeat(choice($.else_if_clause, $.else_if_let_clause))
+        field('value', $.expression)
       ),
-      optional_with_placeholder('else_clause_placeholder', $.else_clause)
-    ),
 
-    if_let_expression: $ => seq(
-      $.if_let_clause, 
-      optional_with_placeholder('else_if_list', 
-        repeat(choice($.else_if_clause, $.else_if_let_clause))
+    while_let_expression: $ =>
+      seq('while', alias($.while_let_condition, $.condition), $.enclosed_body),
+
+    loop: $ =>
+      seq(
+        optional_with_placeholder(
+          'loop_label_optional',
+          seq($.loop_label, ':')
+        ),
+        'loop',
+        $.enclosed_body
       ),
-      optional_with_placeholder('else_clause_placeholder', $.else_clause)
-    ),
 
-    else_clause: $ => seq(
-      'else',
-      field('statement_or_block', $.block)
-    ),
-
-    match_expression: $ => seq(
-      'match',
-      field('value', $._expression),
-      field('body', $.match_block)
-    ),
-
-    match_block: $ => seq(
-      '{',
-      optional(seq(
-        repeat($.match_arm),
-        alias($.last_match_arm, $.match_arm)
-      )),
-      '}'
-    ),
-
-    match_arm: $ => seq(
-      repeat($.attribute_item),
-      field('pattern', choice(
-        $.macro_invocation,
-        $.match_pattern
-      )),
-      '=>',
-      choice(
-        seq(field('value', $._expression), ','),
-        field('value', prec(1, $._expression_ending_with_block))
-      )
-    ),
-
-    last_match_arm: $ => seq(
-      repeat($.attribute_item),
-      field('pattern', $.match_pattern),
-      '=>',
-      field('value', $._expression),
-      optional(',')
-    ),
-
-    match_pattern: $ => seq(
-      $._pattern,
-      optional(seq('if', field('condition', $._expression)))
-    ),
-
-    while_expression: $ => seq(
-      optional(seq($.loop_label, ':')),
-      'while',
-      field('while_condition', $._expression),
-      field('statement_or_block', $.block)
-    ),
-
-    while_let_condition: $ => seq(
-      'let',
-      field('pattern', $._pattern),
-      '=',
-      field('value', $._expression),
-    ),
-
-    while_let_expression: $ => seq(
-      optional(seq($.loop_label, ':')),
-      'while',
-      alias($.while_let_condition, $.while_condition),
-      field('statement_or_block', $.block)
-    ),
-
-    loop_expression: $ => seq(
-      optional(seq($.loop_label, ':')),
-      'loop',
-      field('body', $.block)
-    ),
-
-    for_expression: $ => seq(
-      optional(seq($.loop_label, ':')),
-      'for',
-      field('for_each_left', $._pattern),
-      'in',
-      field('for_each_right', $._expression),
-      field('statement_or_block', $.block)
-    ),
-
-    const_block: $ => seq(
-      'const',
-      field('body', $.block)
-    ),
-
-    closure_expression: $ => prec(PREC.closure, seq(
-      optional('move'),
-      field('parameters', $.closure_parameters),
-      choice(
-        prec(10, seq(
-          optional_with_placeholder('function_type_clause', $.function_type_clause),
-          field('body', $.block)
-        )),
-        field('lambda_return_value', $._expression)
-      )
-    )),
-
-    closure_parameter: $ => choice(
-        $._pattern,
-        $.simple_parameter
-    ),
-
-    closure_parameters: $ => seq(
-      '|',
-      optional_with_placeholder('closure_parameter_list', 
-        sepBy(',', $.closure_parameter)
+    for: $ =>
+      seq(
+        optional_with_placeholder(
+          'loop_label_optional',
+          seq($.loop_label, ':')
+        ),
+        $.for_each_clause
       ),
-      '|'
-    ),
 
-    loop_label: $ => seq('\'', $.identifier),
+    for_each_clause: $ =>
+      seq(
+        'for',
+        field('block_iterator', $.pattern_),
+        'in',
+        field('block_collection', $.expression),
+        $.enclosed_body
+      ),
 
-    break_expression: $ => prec.left(seq('break', optional($.loop_label), optional($._expression))),
+    const_block: $ => seq('const', $.enclosed_body),
 
-    continue_expression: $ => prec.left(seq('continue', optional($.loop_label))),
+    move_modifier: $ => field('modifier', 'move'),
 
-    index_expression: $ => prec(PREC.call, seq($._expression, '[', $._expression, ']')),
+    lambda: $ =>
+      prec(
+        PREC.closure,
+        seq(
+          optional_with_placeholder('modifier_list', $.move_modifier),
+          field('parameters', $.closure_parameters),
+          choice(
+            prec.dynamic(
+              1,
+              seq(
+                optional_with_placeholder(
+                  'return_type_optional',
+                  $.function_type_clause
+                ),
+                $.enclosed_body
+              )
+            ),
+            field('return_value', $.expression)
+          )
+        )
+      ),
 
-    await_expression: $ => prec(PREC.field, seq(
-      $._expression,
-      '.',
-      'await'
-    )),
+    closure_parameter: $ => choice($.pattern_, $.simple_parameter),
 
-    field_expression: $ => prec(PREC.field, seq(
-      field('value', $._expression),
-      '.',
-      field('field', choice(
-        $._field_identifier,
-        $.integer_literal
-      ))
-    )),
+    closure_parameters: $ =>
+      seq(
+        '|',
+        optional_with_placeholder(
+          'parameter_list',
+          sepBy(',', alias($.closure_parameter, $.parameter))
+        ),
+        '|'
+      ),
 
-    unsafe_block: $ => seq(
-      $.unsafe_modifier,
-      $.block
-    ),
+    loop_label: $ => seq("'", $.identifier),
 
-    async_block: $ => seq(
-      'async',
-      optional("move"),
-      $.block
-    ),
+    break_expression: $ =>
+      prec.left(seq('break', optional($.loop_label), optional($.expression))),
 
-    block: $ => seq(
-      '{',
-      optional_with_placeholder('statement_list', seq(
-        repeat($.statement),
-        optional($._expression)
-      )),
-      '}'
-    ),
+    continue_expression: $ =>
+      prec.left(seq('continue', optional($.loop_label))),
+
+    index_expression: $ =>
+      prec(PREC.call, seq($.expression, '[', $.expression, ']')),
+
+    await_expression: $ => prec(PREC.field, seq($.expression, '.', 'await')),
+
+    field_expression: $ =>
+      prec(
+        PREC.field,
+        seq(
+          field('value', $.expression),
+          '.',
+          field('field', choice($._field_identifier, $.integer_literal))
+        )
+      ),
+
+    unsafe_block: $ => seq($.unsafe_modifier, $.enclosed_body),
+
+    async_block: $ => seq('async', optional('move'), $.enclosed_body),
+
+    enclosed_body: $ =>
+      seq(
+        '{',
+        optional_with_placeholder(
+          'statement_list',
+          seq(repeat($.statement), optional($.expression))
+        ),
+        '}'
+      ),
 
     // Section - Patterns
 
-    _pattern: $ => choice(
-      $._literal_pattern,
-      alias(choice(...primitive_types), $.identifier),
-      $.identifier,
-      $.scoped_identifier,
-      $.tuple_pattern,
-      $.tuple_struct_pattern,
-      $.struct_pattern,
-      $.ref_pattern,
-      $.slice_pattern,
-      $.captured_pattern,
-      $.reference_pattern,
-      $.remaining_field_pattern,
-      $.mut_pattern,
-      $.range_pattern,
-      $.or_pattern,
-      $.const_block,
-      '_'
-    ),
-
-    tuple_pattern: $ => seq(
-      '(',
-      sepBy(',', $._pattern),
-      optional(','),
-      ')'
-    ),
-
-    slice_pattern: $ => seq(
-      '[',
-      sepBy(',', $._pattern),
-      optional(','),
-      ']'
-    ),
-
-    tuple_struct_pattern: $ => seq(
-      field('type', choice(
-        $.identifier,
-        $.scoped_identifier
-      )),
-      '(',
-      sepBy(',', $._pattern),
-      optional(','),
-      ')'
-    ),
-
-    struct_pattern: $ => seq(
-      field('type', choice(
-        $._type_identifier,
-        $.scoped_type_identifier
-      )),
-      '{',
-      sepBy(',', choice($.field_pattern, $.remaining_field_pattern)),
-      optional(','),
-      '}'
-    ),
-
-    field_pattern: $ => seq(
-      optional('ref'),
-      optional_with_placeholder('modifier_list', $.mutable_specifier),
+    pattern_: $ =>
       choice(
-        field('name', alias($.identifier, $.shorthand_field_identifier)),
-        seq(
-          field('name', $._field_identifier),
-          ':',
-          field('pattern', $._pattern)
+        $.literal_pattern_,
+        $.primitive_type_identifiers,
+        $.identifier,
+        $.scoped_identifier,
+        $.tuple_pattern,
+        $.tuple_struct_pattern,
+        $.struct_pattern,
+        $.ref_pattern,
+        $.slice_pattern,
+        $.captured_pattern,
+        $.reference_pattern,
+        $.remaining_field_pattern,
+        $.mut_pattern,
+        $.range_pattern,
+        $.or_pattern,
+        $.const_block,
+        '_'
+      ),
+
+    tuple_pattern: $ => seq('(', sepBy(',', $.pattern_), optional(','), ')'),
+
+    slice_pattern: $ => seq('[', sepBy(',', $.pattern_), optional(','), ']'),
+
+    tuple_struct_pattern: $ =>
+      seq(
+        field('type', choice($.identifier, $.scoped_identifier)),
+        '(',
+        sepBy(',', $.pattern_),
+        optional(','),
+        ')'
+      ),
+
+    struct_pattern: $ =>
+      seq(
+        field('type', choice($._type_identifier, $.scoped_type_identifier)),
+        '{',
+        sepBy(',', choice($.field_pattern, $.remaining_field_pattern)),
+        optional(','),
+        '}'
+      ),
+
+    field_pattern: $ =>
+      seq(
+        optional('ref'),
+        optional_with_placeholder('modifier_list', $.mutable_specifier),
+        choice(
+          alias($.identifier, $.shorthand_field_identifier),
+          seq(
+            $._field_identifier, //name
+            ':',
+            field('pattern', $.pattern_)
+          )
         )
-      )
-    ),
+      ),
 
     remaining_field_pattern: $ => '..',
 
-    mut_pattern: $ => prec(-1, seq(
-      $.mutable_specifier,
-      $._pattern
-    )),
+    mut_pattern: $ => prec(-1, seq($.mutable_specifier, $.pattern_)),
 
-    range_pattern: $ => seq(
-      choice(
-        $._literal_pattern,
-        $._path,
+    range_pattern: $ =>
+      seq(
+        choice($.literal_pattern_, $._path),
+        choice('...', '..='),
+        choice($.literal_pattern_, $._path)
       ),
-      choice('...', '..='),
-      choice(
-        $._literal_pattern,
-        $._path,
+
+    ref_pattern: $ => seq('ref', $.pattern_),
+
+    captured_pattern: $ => seq($.identifier, '@', $.pattern_),
+
+    reference_pattern: $ =>
+      seq(
+        '&',
+        optional_with_placeholder('modifier_list', $.mutable_specifier),
+        $.pattern_
       ),
-    ),
 
-    ref_pattern: $ => seq(
-      'ref',
-      $._pattern
-    ),
-
-    captured_pattern: $ => seq(
-      $.identifier,
-      '@',
-      $._pattern,
-    ),
-
-    reference_pattern: $ => seq(
-      '&',
-      optional_with_placeholder('modifier_list', $.mutable_specifier),
-      $._pattern
-    ),
-
-    or_pattern: $ => prec.left(-2, seq(
-      $._pattern,
-      '|',
-      $._pattern,
-    )),
+    or_pattern: $ => prec.left(-2, seq($.pattern_, '|', $.pattern_)),
 
     // Section - Literals
 
-    _literal: $ => choice(
-      $.string_literal,
-      $.raw_string_literal,
-      $.char_literal,
-      $.boolean_literal,
-      $.integer_literal,
-      $.float_literal,
-    ),
+    literal_: $ =>
+      choice(
+        $.string_literal,
+        $.raw_string_literal,
+        $.char_literal,
+        $.boolean_literal,
+        $.integer_literal,
+        $.float_literal
+      ),
 
-    _literal_pattern: $ => choice(
-      $.string_literal,
-      $.raw_string_literal,
-      $.char_literal,
-      $.boolean_literal,
-      $.integer_literal,
-      $.float_literal,
-      $.negative_literal,
-    ),
+    literal_pattern_: $ =>
+      choice(
+        $.string_literal,
+        $.raw_string_literal,
+        $.char_literal,
+        $.boolean_literal,
+        $.integer_literal,
+        $.float_literal,
+        $.negative_literal
+      ),
 
     negative_literal: $ => seq('-', choice($.integer_literal, $.float_literal)),
 
-    integer_literal: $ => token(seq(
-      choice(
-        /[0-9][0-9_]*/,
-        /0x[0-9a-fA-F_]+/,
-        /0b[01_]+/,
-        /0o[0-7_]+/
-      ),
-      optional(choice(...numeric_types))
-    )),
-
-    string_literal: $ => seq(
-      alias(/b?"/, '"'),
-      repeat(choice(
-        $.escape_sequence,
-        $.string_content
-      )),
-      token.immediate('"')
-    ),
-
-    char_literal: $ => token(seq(
-      optional('b'),
-      '\'',
-      optional(choice(
-        seq('\\', choice(
-          /[^xu]/,
-          /u[0-9a-fA-F]{4}/,
-          /u{[0-9a-fA-F]+}/,
-          /x[0-9a-fA-F]{2}/
-        )),
-        /[^\\']/
-      )),
-      '\''
-    )),
-
-    escape_sequence: $ => token.immediate(
-      seq('\\',
-        choice(
-          /[^xu]/,
-          /u[0-9a-fA-F]{4}/,
-          /u{[0-9a-fA-F]+}/,
-          /x[0-9a-fA-F]{2}/
+    integer_literal: $ =>
+      token(
+        seq(
+          choice(/[0-9][0-9_]*/, /0x[0-9a-fA-F_]+/, /0b[01_]+/, /0o[0-7_]+/),
+          optional(choice(...numeric_types))
         )
-      )),
+      ),
+
+    string_start: $ => /b?"/,
+
+    string_literal: $ =>
+      seq(
+        alias($.string_start, '"'),
+        repeat(choice($.escape_sequence, $.string_content)),
+        token.immediate('"')
+      ),
+
+    char_literal: $ =>
+      token(
+        seq(
+          optional('b'),
+          "'",
+          optional(
+            choice(
+              seq(
+                '\\',
+                choice(
+                  /[^xu]/,
+                  /u[0-9a-fA-F]{4}/,
+                  /u{[0-9a-fA-F]+}/,
+                  /x[0-9a-fA-F]{2}/
+                )
+              ),
+              /[^\\']/
+            )
+          ),
+          "'"
+        )
+      ),
+
+    escape_sequence: $ =>
+      token.immediate(
+        seq(
+          '\\',
+          choice(
+            /[^xu]/,
+            /u[0-9a-fA-F]{4}/,
+            /u{[0-9a-fA-F]+}/,
+            /x[0-9a-fA-F]{2}/
+          )
+        )
+      ),
 
     boolean_literal: $ => choice('true', 'false'),
 
     // Serenade: Not sure what this rule does, because the external matches return the
     // inner matches instead, and the `comment` node never shows up.
-    comment: $ => choice(
-      $.line_comment,
-      $.block_comment
-    ),
+    comment: $ => choice($.line_comment, $.block_comment),
 
-    line_comment: $ => token(seq(
-      '//', /.*/
-    )),
+    line_comment: $ => token(seq('//', /.*/)),
 
-    _path: $ => choice(
-      $.self,
-      alias(choice(...primitive_types), $.identifier),
-      $.metavariable,
-      $.super,
-      $.crate,
-      $.identifier,
-      $.scoped_identifier,
-      $._reserved_identifier,
-    ),
+    _path: $ =>
+      choice(
+        $.self,
+        $.primitive_type_identifiers,
+        $.metavariable,
+        $.super,
+        $.crate,
+        $.identifier,
+        $.scoped_identifier,
+        $._reserved_identifier
+      ),
 
-    identifier: $ => /(r#)?[_\p{XID_Start}][_\p{XID_Continue}]*/,
+    // Serenade: Add additional level of nesting for internal reasons.
+    identifier: $ => $.identifier_,
 
-    _reserved_identifier: $ => alias(choice(
-      'default',
-      'union',
-    ), $.identifier),
+    identifier_: $ => /(r#)?[_\p{XID_Start}][_\p{XID_Continue}]*/,
 
-    _type_identifier: $ => alias($.identifier, $.type_identifier),
-    _field_identifier: $ => alias($.identifier, $.field_identifier),
+    primitive_type_identifiers: $ =>
+      field('identifier', choice(...primitive_types)),
+
+    _reserved_identifier: $ => choice('default', 'union'),
+
+    _type_identifier: $ => $.identifier,
+    _field_identifier: $ => $.identifier,
 
     self: $ => 'self',
     super: $ => 'super',
     crate: $ => 'crate',
-    
-    metavariable: $ => /\$[a-zA-Z_]\w*/
-  }
+
+    metavariable: $ => /\$[a-zA-Z_]\w*/,
+  },
 })
 
 function sepBy1(sep, rule) {
@@ -1565,5 +1740,5 @@ function sepBy(sep, rule) {
 }
 
 function optional_with_placeholder(field_name, rule) {
-  return choice(field(field_name, rule), field(field_name, blank()));
+  return choice(field(field_name, rule), field(field_name, blank()))
 }
