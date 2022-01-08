@@ -52,9 +52,7 @@ module.exports = grammar({
   inline: $ => [
     $._path,
     $._type_identifier,
-    $._tokens,
     $._field_identifier,
-    $._non_special_token,
     $._reserved_identifier,
     $._expression_ending_with_block,
   ],
@@ -136,7 +134,7 @@ module.exports = grammar({
         $.token_tree_pattern,
         $.token_repetition_pattern,
         $.token_binding_pattern,
-        $._non_special_token
+        $.non_special_token_
       ),
 
     token_tree_pattern: $ =>
@@ -183,27 +181,50 @@ module.exports = grammar({
         'vis'
       ),
 
-    _tokens: $ =>
-      choice($.token_tree, $.token_repetition, $._non_special_token),
+    tokens_: $ =>
+      choice(
+        prec.dynamic(1, ','),
+        field(
+          'argument',
+          choice($.token_tree, $.token_repetition, $.non_special_token_)
+        )
+      ),
 
     token_tree: $ =>
-      choice(
-        seq('(', repeat($._tokens), ')'),
-        seq('[', repeat($._tokens), ']'),
-        seq('{', repeat($._tokens), '}')
+      choice($.token_tree_parens, $.token_tree_brackets, $.token_tree_braces),
+
+    token_tree_parens: $ =>
+      seq(
+        '(',
+        optional_with_placeholder('argument_list', repeat($.tokens_)),
+        ')'
+      ),
+
+    token_tree_brackets: $ =>
+      seq(
+        '[',
+        optional_with_placeholder('argument_list', repeat($.tokens_)),
+        ']'
+      ),
+
+    token_tree_braces: $ =>
+      seq(
+        '{',
+        optional_with_placeholder('argument_list', repeat($.tokens_)),
+        '}'
       ),
 
     token_repetition: $ =>
       seq(
         '$',
         '(',
-        repeat($._tokens),
+        repeat($.tokens_),
         ')',
         optional(/[^+*?]+/),
         choice('+', '*', '?')
       ),
 
-    _non_special_token: $ =>
+    non_special_token_: $ =>
       choice(
         $.literal_,
         $.identifier,
@@ -1059,13 +1080,13 @@ module.exports = grammar({
       ),
 
     macro_invocation: $ =>
-      seq(
-        field(
-          'macro',
-          choice($.scoped_identifier, $.identifier, $._reserved_identifier)
-        ),
-        '!',
-        $.token_tree
+      field(
+        'call', // tag the same way as regular calls...
+        seq(
+          choice($.scoped_identifier, $.identifier, $._reserved_identifier),
+          '!',
+          $.token_tree
+        )
       ),
 
     scoped_identifier: $ =>
