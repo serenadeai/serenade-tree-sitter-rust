@@ -773,12 +773,12 @@ module.exports = grammar({
       seq(
         optional_with_placeholder('modifier_list', $.visibility_modifier),
         'use',
-        field('identifier', $._use_clause)
+        $.use_clause
       ),
 
     use_declaration: $ => seq($.using, ';'),
 
-    _use_clause: $ =>
+    use_clause: $ =>
       choice(
         $._path,
         $.use_as_clause,
@@ -788,10 +788,15 @@ module.exports = grammar({
       ),
 
     scoped_use_list: $ =>
-      seq(optional(field('path', $._path)), '::', field('list', $.use_list)),
+      seq(optional(field('path', $._path)), '::', $.use_list),
 
     use_list: $ =>
-      seq('{', sepBy(',', choice($._use_clause)), optional(','), '}'),
+      seq(
+        '{',
+        field('use_clause_list', sepBy(',', choice($.use_clause))),
+        optional(','),
+        '}'
+      ),
 
     use_as_clause: $ =>
       seq(field('path', $._path), 'as', field('alias', $.identifier)),
