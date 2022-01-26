@@ -3827,29 +3827,66 @@
               "name": "self_parameter"
             },
             {
+              "type": "SYMBOL",
+              "name": "untyped_parameter"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "untypeable_parameter"
+            }
+          ]
+        }
+      ]
+    },
+    "untyped_parameter": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "identifier",
+          "content": {
+            "type": "SYMBOL",
+            "name": "type_"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
               "type": "FIELD",
-              "name": "identifier",
+              "name": "type_optional",
               "content": {
-                "type": "CHOICE",
-                "members": [
-                  {
-                    "type": "SYMBOL",
-                    "name": "variadic_parameter"
-                  },
-                  {
-                    "type": "STRING",
-                    "value": "_"
-                  },
-                  {
-                    "type": "SYMBOL",
-                    "name": "type_"
-                  }
-                ]
+                "type": "STRING",
+                "value": "!!UNMATCHABLE_7ag3f923a297"
+              }
+            },
+            {
+              "type": "FIELD",
+              "name": "type_optional",
+              "content": {
+                "type": "BLANK"
               }
             }
           ]
         }
       ]
+    },
+    "untypeable_parameter": {
+      "type": "FIELD",
+      "name": "identifier",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "SYMBOL",
+            "name": "variadic_parameter"
+          },
+          {
+            "type": "STRING",
+            "value": "_"
+          }
+        ]
+      }
     },
     "parameters": {
       "type": "SEQ",
@@ -8965,6 +9002,10 @@
     [
       "empty_return",
       "return"
+    ],
+    [
+      "untypeable_parameter",
+      "pattern_"
     ]
   ],
   "precedences": [],
