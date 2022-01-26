@@ -71,6 +71,8 @@ module.exports = grammar({
     [$.primitive_type, $.pattern_],
     [$.primitive_type, $.primitive_type_identifiers],
     [$.empty_return, $.return],
+
+    [$.untypeable_parameter, $.pattern_],
   ],
 
   word: $ => $.identifier_,
@@ -809,9 +811,19 @@ module.exports = grammar({
         choice(
           $.simple_parameter,
           $.self_parameter,
-          field('identifier', choice($.variadic_parameter, '_', $.type_))
+          $.untyped_parameter,
+          $.untypeable_parameter
         )
       ),
+
+    untyped_parameter: $ =>
+      seq(
+        field('identifier', $.type_),
+        optional_with_placeholder('type_optional', '!!UNMATCHABLE_7ag3f923a297')
+      ),
+
+    untypeable_parameter: $ =>
+      field('identifier', choice($.variadic_parameter, '_')),
 
     parameters: $ =>
       seq(

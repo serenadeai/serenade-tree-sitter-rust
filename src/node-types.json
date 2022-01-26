@@ -3420,29 +3420,10 @@
   {
     "type": "parameter",
     "named": true,
-    "fields": {
-      "identifier": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "_",
-            "named": false
-          },
-          {
-            "type": "type_",
-            "named": true
-          },
-          {
-            "type": "variadic_parameter",
-            "named": true
-          }
-        ]
-      }
-    },
+    "fields": {},
     "children": {
       "multiple": true,
-      "required": false,
+      "required": true,
       "types": [
         {
           "type": "attribute_item",
@@ -3458,6 +3439,14 @@
         },
         {
           "type": "simple_parameter",
+          "named": true
+        },
+        {
+          "type": "untypeable_parameter",
+          "named": true
+        },
+        {
+          "type": "untyped_parameter",
           "named": true
         }
       ]
@@ -5554,6 +5543,52 @@
     "fields": {}
   },
   {
+    "type": "untypeable_parameter",
+    "named": true,
+    "fields": {
+      "identifier": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "_",
+            "named": false
+          },
+          {
+            "type": "variadic_parameter",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "untyped_parameter",
+    "named": true,
+    "fields": {
+      "identifier": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_",
+            "named": true
+          }
+        ]
+      },
+      "type_optional": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "!!UNMATCHABLE_7ag3f923a297",
+            "named": false
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "use_as_clause",
     "named": true,
     "fields": {
@@ -5966,6 +6001,10 @@
   },
   {
     "type": "!!UNMATCHABLE_20a83a3h0",
+    "named": false
+  },
+  {
+    "type": "!!UNMATCHABLE_7ag3f923a297",
     "named": false
   },
   {
