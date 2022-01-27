@@ -795,7 +795,7 @@ module.exports = grammar({
     use_list: $ =>
       seq(
         '{',
-        field('use_clause_list', sepBy(',', choice($.use_clause))),
+        optional_with_placeholder('use_clause_list', sepBy1(',', $.use_clause)),
         optional(','),
         '}'
       ),

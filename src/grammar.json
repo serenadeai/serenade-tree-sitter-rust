@@ -3681,22 +3681,17 @@
           "value": "{"
         },
         {
-          "type": "FIELD",
-          "name": "use_clause_list",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "use_clause_list",
+              "content": {
                 "type": "SEQ",
                 "members": [
                   {
-                    "type": "CHOICE",
-                    "members": [
-                      {
-                        "type": "SYMBOL",
-                        "name": "use_clause"
-                      }
-                    ]
+                    "type": "SYMBOL",
+                    "name": "use_clause"
                   },
                   {
                     "type": "REPEAT",
@@ -3708,24 +3703,23 @@
                           "value": ","
                         },
                         {
-                          "type": "CHOICE",
-                          "members": [
-                            {
-                              "type": "SYMBOL",
-                              "name": "use_clause"
-                            }
-                          ]
+                          "type": "SYMBOL",
+                          "name": "use_clause"
                         }
                       ]
                     }
                   }
                 ]
-              },
-              {
+              }
+            },
+            {
+              "type": "FIELD",
+              "name": "use_clause_list",
+              "content": {
                 "type": "BLANK"
               }
-            ]
-          }
+            }
+          ]
         },
         {
           "type": "CHOICE",
