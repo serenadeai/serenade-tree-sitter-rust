@@ -4844,71 +4844,85 @@
           }
         },
         {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "SYMBOL",
-                  "name": "type_"
+          "type": "FIELD",
+          "name": "type_argument_list",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "ALIAS",
+                "content": {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "type_"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "type_binding"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "lifetime"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "literal_"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "enclosed_body"
+                    }
+                  ]
                 },
-                {
-                  "type": "SYMBOL",
-                  "name": "type_binding"
-                },
-                {
-                  "type": "SYMBOL",
-                  "name": "lifetime"
-                },
-                {
-                  "type": "SYMBOL",
-                  "name": "literal_"
-                },
-                {
-                  "type": "SYMBOL",
-                  "name": "enclosed_body"
+                "named": true,
+                "value": "type_argument"
+              },
+              {
+                "type": "REPEAT",
+                "content": {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "STRING",
+                      "value": ","
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "SYMBOL",
+                            "name": "type_"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "type_binding"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "lifetime"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "literal_"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "enclosed_body"
+                          }
+                        ]
+                      },
+                      "named": true,
+                      "value": "type_argument"
+                    }
+                  ]
                 }
-              ]
-            },
-            {
-              "type": "REPEAT",
-              "content": {
-                "type": "SEQ",
-                "members": [
-                  {
-                    "type": "STRING",
-                    "value": ","
-                  },
-                  {
-                    "type": "CHOICE",
-                    "members": [
-                      {
-                        "type": "SYMBOL",
-                        "name": "type_"
-                      },
-                      {
-                        "type": "SYMBOL",
-                        "name": "type_binding"
-                      },
-                      {
-                        "type": "SYMBOL",
-                        "name": "lifetime"
-                      },
-                      {
-                        "type": "SYMBOL",
-                        "name": "literal_"
-                      },
-                      {
-                        "type": "SYMBOL",
-                        "name": "enclosed_body"
-                      }
-                    ]
-                  }
-                ]
               }
-            }
-          ]
+            ]
+          }
         },
         {
           "type": "CHOICE",

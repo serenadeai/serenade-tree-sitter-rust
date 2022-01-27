@@ -986,14 +986,20 @@ module.exports = grammar({
     type_arguments: $ =>
       seq(
         token(prec(1, '<')),
-        sepBy1(
-          ',',
-          choice(
-            $.type_,
-            $.type_binding,
-            $.lifetime,
-            $.literal_,
-            $.enclosed_body
+        field(
+          'type_argument_list',
+          sepBy1(
+            ',',
+            alias(
+              choice(
+                $.type_,
+                $.type_binding,
+                $.lifetime,
+                $.literal_,
+                $.enclosed_body
+              ),
+              $.type_argument
+            )
           )
         ),
         optional(','),
