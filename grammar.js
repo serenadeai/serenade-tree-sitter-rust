@@ -1563,12 +1563,14 @@ module.exports = grammar({
 
     async_block: $ => seq('async', optional('move'), $.enclosed_body),
 
+    enclosed_trailing_expression: $ => field('statement', $.expression),
+
     enclosed_body: $ =>
       seq(
         '{',
         optional_with_placeholder(
           'statement_list',
-          seq(repeat($.statement), optional($.expression))
+          seq(repeat($.statement), optional($.enclosed_trailing_expression))
         ),
         '}'
       ),

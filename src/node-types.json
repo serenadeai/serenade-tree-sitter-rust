@@ -1171,7 +1171,7 @@
         "required": false,
         "types": [
           {
-            "type": "expression",
+            "type": "enclosed_trailing_expression",
             "named": true
           },
           {
@@ -1186,6 +1186,22 @@
         "types": [
           {
             "type": "declaration_list",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "enclosed_trailing_expression",
+    "named": true,
+    "fields": {
+      "statement": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
             "named": true
           }
         ]
@@ -5198,7 +5214,7 @@
         "required": false,
         "types": [
           {
-            "type": "expression",
+            "type": "enclosed_trailing_expression",
             "named": true
           },
           {

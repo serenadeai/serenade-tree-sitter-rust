@@ -7792,6 +7792,14 @@
         }
       ]
     },
+    "enclosed_trailing_expression": {
+      "type": "FIELD",
+      "name": "statement",
+      "content": {
+        "type": "SYMBOL",
+        "name": "expression"
+      }
+    },
     "enclosed_body": {
       "type": "SEQ",
       "members": [
@@ -7820,7 +7828,7 @@
                     "members": [
                       {
                         "type": "SYMBOL",
-                        "name": "expression"
+                        "name": "enclosed_trailing_expression"
                       },
                       {
                         "type": "BLANK"
