@@ -97,11 +97,11 @@
         },
         {
           "type": "SYMBOL",
-          "name": "mod_item"
+          "name": "module"
         },
         {
           "type": "SYMBOL",
-          "name": "foreign_mod_item"
+          "name": "foreign_module"
         },
         {
           "type": "SYMBOL",
@@ -1078,7 +1078,7 @@
         }
       ]
     },
-    "mod_item": {
+    "module": {
       "type": "SEQ",
       "members": [
         {
@@ -1124,36 +1124,48 @@
               "type": "FIELD",
               "name": "enclosed_body",
               "content": {
-                "type": "SEQ",
-                "members": [
-                  {
-                    "type": "STRING",
-                    "value": "{"
-                  },
-                  {
-                    "type": "CHOICE",
-                    "members": [
-                      {
-                        "type": "SYMBOL",
-                        "name": "declaration_list"
-                      },
-                      {
-                        "type": "BLANK"
-                      }
-                    ]
-                  },
-                  {
-                    "type": "STRING",
-                    "value": "}"
-                  }
-                ]
+                "type": "SYMBOL",
+                "name": "module_member_block"
               }
             }
           ]
         }
       ]
     },
-    "foreign_mod_item": {
+    "module_member_block": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "{"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "module_member_list",
+              "content": {
+                "type": "SYMBOL",
+                "name": "declaration_list"
+              }
+            },
+            {
+              "type": "FIELD",
+              "name": "module_member_list",
+              "content": {
+                "type": "BLANK"
+              }
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": "}"
+        }
+      ]
+    },
+    "foreign_module": {
       "type": "SEQ",
       "members": [
         {

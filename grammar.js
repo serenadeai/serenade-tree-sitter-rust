@@ -96,8 +96,8 @@ module.exports = grammar({
         $.empty_statement,
         $.attribute_item,
         $.inner_attribute_item,
-        $.mod_item,
-        $.foreign_mod_item,
+        $.module,
+        $.foreign_module,
         $.struct,
         $.union_item,
         $.enum,
@@ -294,18 +294,22 @@ module.exports = grammar({
         ')'
       ),
 
-    mod_item: $ =>
+    module: $ =>
       seq(
         optional_with_placeholder('modifier_list', $.visibility_modifier),
         'mod',
         field('name', $.identifier),
-        choice(
-          ';',
-          field('enclosed_body', seq('{', optional($.declaration_list), '}'))
-        )
+        choice(';', field('enclosed_body', $.module_member_block))
       ),
 
-    foreign_mod_item: $ =>
+    module_member_block: $ =>
+      seq(
+        '{',
+        optional_with_placeholder('module_member_list', $.declaration_list),
+        '}'
+      ),
+
+    foreign_module: $ =>
       seq(
         optional_with_placeholder('modifier_list', $.visibility_modifier),
         $.extern_modifier,
