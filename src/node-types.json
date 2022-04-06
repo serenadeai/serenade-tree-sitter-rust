@@ -942,7 +942,7 @@
           "named": true
         },
         {
-          "type": "foreign_mod_item",
+          "type": "foreign_module",
           "named": true
         },
         {
@@ -966,7 +966,7 @@
           "named": true
         },
         {
-          "type": "mod_item",
+          "type": "module",
           "named": true
         },
         {
@@ -1835,7 +1835,7 @@
     }
   },
   {
-    "type": "foreign_mod_item",
+    "type": "foreign_module",
     "named": true,
     "fields": {
       "enclosed_body": {
@@ -3065,7 +3065,7 @@
           "named": true
         },
         {
-          "type": "foreign_mod_item",
+          "type": "foreign_module",
           "named": true
         },
         {
@@ -3089,7 +3089,7 @@
           "named": true
         },
         {
-          "type": "mod_item",
+          "type": "module",
           "named": true
         },
         {
@@ -3212,24 +3212,16 @@
     }
   },
   {
-    "type": "mod_item",
+    "type": "module",
     "named": true,
     "fields": {
       "enclosed_body": {
-        "multiple": true,
+        "multiple": false,
         "required": false,
         "types": [
           {
-            "type": "declaration_list",
+            "type": "module_member_block",
             "named": true
-          },
-          {
-            "type": "{",
-            "named": false
-          },
-          {
-            "type": "}",
-            "named": false
           }
         ]
       },
@@ -3249,6 +3241,22 @@
         "types": [
           {
             "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "module_member_block",
+    "named": true,
+    "fields": {
+      "module_member_list": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "declaration_list",
             "named": true
           }
         ]
